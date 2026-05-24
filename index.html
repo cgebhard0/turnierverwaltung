@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turnierverwaltung SC Steindorf</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #16a085; --secondary: #2c3e50; --accent: #e74c3c; --bg: #f8f9fa; --card-bg: #ffffff; --text: #333333; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 60px; -webkit-tap-highlight-color: transparent; }
+        
+        header { background-color: var(--secondary); color: white; padding: 15px 10px; text-align: center; position: sticky; top: 0; z-index: 100; }
+        h1 { font-size: 1.3rem; margin-bottom: 10px; color: #1abc9c; }
+        .controls { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+        .select-container { background: rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; align-items: center; }
+        .select-container select { background: transparent; color: white; border: none; font-weight: bold; font-size: 0.85rem; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; }
+        .select-container select option { color: black; background-color: white; }
+
+        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        .tabs { display: flex; margin-bottom: 15px; background: #eee; padding: 5px; border-radius: 8px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; font-weight: bold; color: #666; border-radius: 6px; cursor: pointer; -webkit-appearance: none; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .progress-container { background: var(--card-bg); padding: 12px; border-radius: 8px; border: 1px solid #eef0f2; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .progress-text { font-size: 0.85rem; font-weight: bold; color: var(--secondary); margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .progress-bar-bg { background: #eee; width: 100%; height: 10px; border-radius: 5px; overflow: hidden; }
+        .progress-bar-fill { background: var(--primary); width: 0%; height: 100%; border-radius: 5px; transition: width 0.4s ease-out; }
+
+        .ranking-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; font-size: 0.95rem; }
+        .ranking-table th, .ranking-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee; }
+        .ranking-table th { background-color: #f1f1f1; }
+        .podium { font-weight: bold; color: #f39c12; }
+
+        .runde-header { margin: 25px 0 10px 0; font-size: 1.1rem; color: var(--secondary); border-left: 4px solid var(--primary); padding-left: 8px; }
+        .runde-datum { font-size: 0.8rem; color: #7f8c8d; font-weight: normal; margin-left: 5px; }
+        .match-card { background: var(--card-bg); border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid #eef0f2; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .match-status { display: inline-block; font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; font-weight: bold; margin-bottom: 10px; }
+        .status-offen { background: #ffeaa7; color: #d63031; }
+        .status-gesplayed { background: #dff9fb; color: #0984e3; }
+        .status-cancelled { background: #dfe4ea; color: #718093; }
+        .organisator { color: var(--accent); font-weight: bold; }
+        .ergebnis-text { font-size: 0.9rem; background: #f1f2f6; padding: 8px; border-radius: 4px; margin-top: 5px; margin-bottom: 10px; font-weight: bold;}
+        
+        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; -webkit-appearance: none; font-size: 1rem; }
+        .btn-edit { background: #3498db; }
+        .btn-locked { background: #ecf0f1; color: #95a5a6; cursor: not-allowed; }
+        .btn-reset { background: #d63031; margin-top: 30px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; padding: 15px; }
+        .modal-content { background: white; border-radius: 8px; padding: 20px; width: 100%; max-width: 450px; }
+        .modal-hint { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 15px; }
+        .input-group { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
+        .input-group input { width: 80px; padding: 10px; border: 2px solid #bdc3c7; border-radius: 4px; text-align: center; font-size: 1.2rem; -webkit-appearance: none; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-cancel { background: #b2bec3; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Turnierverwaltung SC Steindorf</h1>
+    <div class="controls">
+        <div class="select-container">
+            Bewerb: 
+            <select id="bewerbDropdown" onchange="changeBewerb()">
+                <option value="Doppel">Doppel</option>
+                <option value="Einzel">Einzel</option>
+            </select>
+        </div>
+        <div class="select-container">
+            Gruppe: 
+            <select id="groupDropdown" onchange="changeGroup()"></select>
+        </div>
+        <div class="select-container">
+            Profil: 
+            <select id="userDropdown" onchange="changeUser()"></select>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('spiele')">Spiele</button>
+        <button class="tab-btn" onclick="switchTab('rangliste')">Rangliste</button>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-text">
+            <span>Turnierfortschritt</span>
+            <span id="progress-stats">Lade Live-Daten...</span>
+        </div>
+        <div class="progress-bar-bg">
+            <div id="progress-bar" class="progress-bar-fill"></div>
+        </div>
+    </div>
+
+    <div id="tab-spiele" class="tab-content active">
+        <div id="spiele-liste"></div>
+        <button class="btn btn-reset" onclick="resetAllData()">Gruppe zurücksetzen 🔒</button>
+    </div>
+
+    <div id="tab-rangliste" class="tab-content">
+        <table class="ranking-table">
+            <thead>
+                <tr id="ranking-header"></tr>
+            </thead>
+            <tbody id="rangliste-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="scoreModal" class="modal">
+    <div class="modal-content">
+        <input type="hidden" id="matchId">
+        <h2 id="modalTitle">Ergebnis eintragen</h2>
+        <div id="modalHint" class="modal-hint"></div>
+        <div id="modalInputs"></div>
+        <div class="modal-buttons">
+            <button type="button" class="btn btn-cancel" onclick="closeModal()">Abbrechen</button>
+            <button type="button" class="btn" onclick="saveScore()">Speichern</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// -------------------------------------------------------------------------
+// 1. FIREBASE KONFIGURATION
+// -------------------------------------------------------------------------
+const firebaseConfig = {
+    apiKey: "AIzaSyDpI-0rnr8Z-DW9jW3ebfuXjSPKksb81mc",
+    authDomain: "steindorf-turnier.firebaseapp.com",
+    projectId: "steindorf-turnier",
+    databaseURL: "https://steindorf-turnier-default-rtdb.europe-west1.firebasedatabase.app",
+    storageBucket: "steindorf-turnier.firebasestorage.app",
+    messagingSenderId: "467666979224",
+    appId: "1:467666979224:web:92cd770d9f5b70db1fc3ed",
+    measurementId: "G-PMMLNFY1H2"
+};
+
+// Firebase initialisieren
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// -------------------------------------------------------------------------
+// 2. HILFSFUNKTIONEN & BERECHTIGUNGEN
+// -------------------------------------------------------------------------
+const safeStorage = {
+    getItem: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
+    setItem: (key, val) => { try { localStorage.setItem(key, val); } catch(e) {} },
+    removeItem: (key) => { try { localStorage.removeItem(key); } catch(e) {} }
+};
+
+function darfErgebnisEintragen(match, currentUser) {
+    if (currentUser === 'Admin') return true;
+    if (!currentUser || currentUser === 'Gast') return false;
+    return match.spieler.includes(currentUser);
+}
+
+// -------------------------------------------------------------------------
+// 3. TURNIER-DATEN (Struktur & Spieler)
+// -------------------------------------------------------------------------
+const gruppenStruktur = { 'Doppel': ['A', 'B', 'C'], 'Einzel': ['A', 'B', 'C', 'D', 'E'] };
+
+const spielerListen = {
+    'Doppel': {
+        'A': ["Gast", "Franky", "Andreas", "Elmar", "Andy", "Nina", "Pedro", "Günther", "Hannes", "Stefan P.", "Köste", "Peter", "Robi"],
+        'B': ["Gast", "Christian", "Simone", "Zippe", "Gabi", "Sandra", "Stefan", "Wolfi", "Dietmar"],
+        'C': ["Gast", "Anna B.", "Anna K.", "Sabrina", "Mandy", "Silke", "Michaela", "Bici", "Mister X"]
+    },
+    'Einzel': {
+        'A': ["Gast", "Nina", "Peter", "Pedro", "Franky"],
+        'B': ["Gast", "Elmar", "Andreas", "Günther", "Stefan P.", "Robi"],
+        'C': ["Gast", "Hannes", "Christian", "Sandra", "Köste", "Stefan T."],
+        'D': ["Gast", "Michaela", "Silke", "Zippe", "Sabrina"],
+        'E': ["Gast", "Simone", "Bici", "Anna B.", "Anna K."]
+    }
+};
+
+// -------------------------------------------------------------------------
+// 4. SPIELPLÄNE (Doppel & Einzel) - Doppel-Spielleiter mit (*) markiert
+// -------------------------------------------------------------------------
+const turnierSpielplaene = {
+    "Doppel A": [
+        { runde: 1, team1: ["Nina*", "Stefan P."], team2: ["Günther", "Köste"] },
+        { runde: 1, team1: ["Robi*", "Andreas"], team2: ["Franky", "Hannes"] },
+        { runde: 1, team1: ["Elmar*", "Andy"], team2: ["Pedro", "Peter"] },
+        { runde: 2, team1: ["Robi*", "Nina"], team2: ["Andy", "Peter"] },
+        { runde: 2, team1: ["Pedro*", "Günther"], team2: ["Stefan P.", "Elmar"] },
+        { runde: 2, team1: ["Hannes*", "Franky"], team2: ["Köste", "Andreas"] },
+        { runde: 3, team1: ["Stefan P.*", "Köste"], team2: ["Franky", "Pedro"] },
+        { runde: 3, team1: ["Peter*", "Andy"], team2: ["Andreas", "Nina"] },
+        { runde: 3, team1: ["Robi*", "Hannes"], team2: ["Günther", "Elmar"] },
+        { runde: 4, team1: ["Elmar*", "Günther"], team2: ["Nina", "Hannes"] },
+        { runde: 4, team1: ["Robi*", "Peter"], team2: ["Köste", "Pedro"] },
+        { runde: 4, team1: ["Franky*", "Andreas"], team2: ["Andy", "Stefan P."] },
+        { runde: 5, team1: ["Robi*", "Elmar"], team2: ["Andreas", "Stefan P."] },
+        { runde: 5, team1: ["Andy*", "Nina"], team2: ["Günther", "Franky"] },
+        { runde: 5, team1: ["Pedro*", "Köste"], team2: ["Hannes", "Peter"] },
+        { runde: 6, team1: ["Günther*", "Hannes"], team2: ["Köste", "Andy"] },
+        { runde: 6, team1: ["Stefan P.*", "Andreas"], team2: ["Peter", "Elmar"] },
+        { runde: 6, team1: ["Robi*", "Pedro"], team2: ["Nina", "Franky"] },
+        { runde: 7, team1: ["Franky*", "Nina"], team2: ["Elmar", "Pedro"] },
+        { runde: 7, team1: ["Robi*", "Stefan P."], team2: ["Hannes", "Andy"] },
+        { runde: 7, team1: ["Köste*", "Peter"], team2: ["Andreas", "Günther"] },
+        { runde: 8, team1: ["Robi*", "Franky"], team2: ["Peter", "Günther"] },
+        { runde: 8, team1: ["Andreas*", "Elmar"], team2: ["Nina", "Köste"] },
+        { runde: 8, team1: ["Andy*", "Hannes"], team2: ["Pedro", "Stefan P."] },
+        { runde: 9, team1: ["Nina*", "Pedro"], team2: ["Hannes", "Andreas"] },
+        { runde: 9, team1: ["Günther*", "Peter"], team2: ["Stefan P.", "Franky"] },
+        { runde: 9, team1: ["Robi*", "Andy"], team2: ["Elmar", "Köste"] },
+        { runde: 10, team1: ["Köste*", "Elmar"], team2: ["Franky", "Andy"] },
+        { runde: 10, team1: ["Robi*", "Günther"], team2: ["Pedro", "Andreas"] },
+        { runde: 10, team1: ["Hannes*", "Stefan P."], team2: ["Peter", "Nina"] },
+        { runde: 11, team1: ["Robi*", "Köste"], team2: ["Stefan P.", "Nina"] },
+        { runde: 11, team1: ["Peter*", "Franky"], team2: ["Elmar", "Hannes"] },
+        { runde: 11, team1: ["Andreas*", "Pedro"], team2: ["Andy", "Günther"] }
+    ],
+    "Doppel B": [
+        { runde: 1, team1: ["Christian*", "Zippe"], team2: ["Simone", "Gabi"] },
+        { runde: 1, team1: ["Sandra*", "Wolfi"], team2: ["Stefan", "Dietmar"] },
+        { runde: 2, team1: ["Simone*", "Christian"], team2: ["Wolfi", "Dietmar"] },
+        { runde: 2, team1: ["Gabi*", "Zippe"], team2: ["Sandra", "Stefan"] },
+        { runde: 3, team1: ["Christian*", "Dietmar"], team2: ["Gabi", "Sandra"] },
+        { runde: 3, team1: ["Wolfi*", "Simone"], team2: ["Stefan", "Zippe"] },
+        { runde: 4, team1: ["Dietmar*", "Sandra"], team2: ["Simone", "Zippe"] },
+        { runde: 4, team1: ["Stefan*", "Wolfi"], team2: ["Gabi", "Christian"] },
+        { runde: 5, team1: ["Stefan*", "Gabi"], team2: ["Dietmar", "Simone"] },
+        { runde: 5, team1: ["Zippe*", "Sandra"], team2: ["Christian", "Wolfi"] },
+        { runde: 6, team1: ["Gabi*", "Simone"], team2: ["Wolfi", "Sandra"] },
+        { runde: 6, team1: ["Dietmar*", "Christian"], team2: ["Zippe", "Stefan"] },
+        { runde: 7, team1: ["Wolfi*", "Dietmar"], team2: ["Zippe", "Gabi"] },
+        { runde: 7, team1: ["Sandra*", "Stefan"], team2: ["Christian", "Simone"] }
+    ],
+    "Doppel C": [
+        { runde: 1, team1: ["Mister X*", "Michaela"], team2: ["Bici", "Sabrina"] },
+        { runde: 1, team1: ["Anna K.*", "Mandy"], team2: ["Anna B.", "Silke"] },
+        { runde: 2, team1: ["Bici*", "Mister X"], team2: ["Mandy", "Silke"] },
+        { runde: 2, team1: ["Sabrina*", "Michaela"], team2: ["Anna K.", "Anna B."] },
+        { runde: 3, team1: ["Mister X*", "Silke"], team2: ["Sabrina", "Anna K."] },
+        { runde: 3, team1: ["Mandy*", "Bici"], team2: ["Anna B.", "Michaela"] },
+        { runde: 4, team1: ["Silke*", "Anna K."], team2: ["Bici", "Michaela"] },
+        { runde: 4, team1: ["Anna B.*", "Mandy"], team2: ["Sabrina", "Mister X"] },
+        { runde: 5, team1: ["Anna B.*", "Michaela"], team2: ["Silke", "Mister X"] },
+        { runde: 5, team1: ["Sabrina*", "Anna K."], team2: ["Bici", "Mandy"] },
+        { runde: 6, team1: ["Sabrina*", "Bici"], team2: ["Mandy", "Anna K."] },
+        { runde: 6, team1: ["Silke*", "Mister X"], team2: ["Michaela", "Anna B."] },
+        { runde: 7, team1: ["Mandy*", "Silke"], team2: ["Michaela", "Sabrina"] },
+        { runde: 7, team1: ["Anna K.*", "Anna B."], team2: ["Mister X", "Bici"] }
+    ],
+    "Einzel A": [
+        { runde: 1, team1: ["Nina"], team2: ["Peter"] },
+        { runde: 1, team1: ["Pedro"], team2: ["Franky"] },
+        { runde: 2, team1: ["Nina"], team2: ["Pedro"] },
+        { runde: 2, team1: ["Peter"], team2: ["Franky"] },
+        { runde: 3, team1: ["Nina"], team2: ["Franky"] },
+        { runde: 3, team1: ["Peter"], team2: ["Pedro"] }
+    ],
+    "Einzel B": [
+        { runde: 1, team1: ["Elmar"], team2: ["Andreas"] },
+        { runde: 1, team1: ["Günther"], team2: ["Stefan P."] },
+        { runde: 2, team1: ["Robi"], team2: ["Elmar"] },
+        { runde: 2, team1: ["Andreas"], team2: ["Günther"] },
+        { runde: 3, team1: ["Stefan P."], team2: ["Robi"] },
+        { runde: 3, team1: ["Elmar"], team2: ["Günther"] },
+        { runde: 4, team1: ["Andreas"], team2: ["Stefan P."] },
+        { runde: 4, team1: ["Günther"], team2: ["Robi"] },
+        { runde: 5, team1: ["Elmar"], team2: ["Stefan P."] },
+        { runde: 5, team1: ["Andreas"], team2: ["Robi"] }
+    ],
+    "Einzel C": [
+        { runde: 1, team1: ["Hannes"], team2: ["Christian"] },
+        { runde: 1, team1: ["Sandra"], team2: ["Köste"] },
+        { runde: 2, team1: ["Stefan T."], team2: ["Hannes"] },
+        { runde: 2, team1: ["Christian"], team2: ["Sandra"] },
+        { runde: 3, team1: ["Köste"], team2: ["Stefan T."] },
+        { runde: 3, team1: ["Hannes"], team2: ["Sandra"] },
+        { runde: 4, team1: ["Christian"], team2: ["Köste"] },
+        { runde: 4, team1: ["Sandra"], team2: ["Stefan T."] },
+        { runde: 5, team1: ["Hannes"], team2: ["Köste"] },
+        { runde: 5, team1: ["Christian"], team2: ["Stefan T."] }
+    ],
+    "Einzel D": [
+        { runde: 1, team1: ["Michaela"], team2: ["Silke"] },
+        { runde: 1, team1: ["Zippe"], team2: ["Sabrina"] },
+        { runde: 2, team1: ["Michaela"], team2: ["Zippe"] },
+        { runde: 2, team1: ["Silke"], team2: ["Sabrina"] },
+        { runde: 3, team1: ["Michaela"], team2: ["Sabrina"] },
+        { runde: 3, team1: ["Silke"], team2: ["Zippe"] }
+    ],
+    "Einzel E": [
+        { runde: 1, team1: ["Simone"], team2: ["Bici"] },
+        { runde: 1, team1: ["Anna B."], team2: ["Anna K."] },
+        { runde: 2, team1: ["Simone"], team2: ["Anna B."] },
+        { runde: 2, team1: ["Bici"], team2: ["Anna K."] },
+        { runde: 3, team1: ["Simone"], team2: ["Anna K."] },
+        { runde: 3, team1: ["Bici"], team2: ["Anna B."] }
+    ]
+};
+
+// -------------------------------------------------------------------------
+// 5. DATENBANK-MAPPING (Generiert standardSpiele aus turnierSpielplaene)
+// -------------------------------------------------------------------------
+const standardSpiele = { 
+    'Doppel': { 'A': [], 'B': [], 'C': [] }, 
+    'Einzel': { 'A': [], 'B': [], 'C': [], 'D': [], 'E': [] } 
+};
+
+Object.keys(turnierSpielplaene).forEach(key => {
+    const parts = key.split(" ");
+    const bewerb = parts[0]; 
+    const gruppe = parts[1]; 
+    let matchIndex = 1;
+    
+    turnierSpielplaene[key].forEach(spiel => {
+        const rawSpieler = [...spiel.team1, ...spiel.team2];
+        const cleanSpieler = rawSpieler.map(name => name.replace('*', ''));
+        
+        standardSpiele[bewerb][gruppe].push({
+            id: `${bewerb.charAt(0).toLowerCase()}_${gruppe}_${matchIndex}`,
+            runde: `Runde ${spiel.runde}`,
+            datum: "TBA",
+            spieler: cleanSpieler,
+            gespielt: false,
+            cancelled: false,
+            ergebnisse: {}
+        });
+        matchIndex++;
+    });
+});
+
+// -------------------------------------------------------------------------
+// 6. HAUPT-LOGIK (UI, Firebase Listener, Rendern etc.)
+// -------------------------------------------------------------------------
+
+    let actBewerb = safeStorage.getItem('steindorfer_bewerb') || 'Doppel';
+    let actGroup = safeStorage.getItem('steindorfer_group_' + actBewerb) || 'A';
+    let currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup) || 'Gast';
+    
+    let spiele = [];
+    let currentDbRef = null;
+
+    document.getElementById('bewerbDropdown').value = actBewerb;
+
+    function initSelects() {
+        const gDrop = document.getElementById('groupDropdown');
+        gDrop.innerHTML = '';
+        gruppenStruktur[actBewerb].forEach(g => { gDrop.innerHTML += `<option value="${g}">Gruppe ${g}</option>`; });
+        if (!gruppenStruktur[actBewerb].includes(actGroup)) actGroup = gruppenStruktur[actBewerb][0];
+        gDrop.value = actGroup;
+
+        const uDrop = document.getElementById('userDropdown');
+        uDrop.innerHTML = '<option value="Gast">Gast</option><option value="Admin">Admin</option>';
+        spielerListen[actBewerb][actGroup].forEach(user => { 
+            if (user !== "Gast") uDrop.innerHTML += `<option value="${user}">${user}</option>`; 
+        });
+        
+        currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup) || 'Gast';
+        // Fallback: Setze auf "Gast", falls der gespeicherte Nutzer in dieser Gruppe nicht existiert
+        if(!Array.from(uDrop.options).some(opt => opt.value === currentUser)) currentUser = 'Gast';
+        uDrop.value = currentUser;
+    }
+
+    function listenToFirebase() {
+        if (currentDbRef) currentDbRef.off();
+        document.getElementById('progress-stats').innerText = "Synchronisiere...";
+        
+        currentDbRef = database.ref(`turnier/${actBewerb}_${actGroup}`);
+        
+        currentDbRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                spiele = data;
+                // FIX: Leere ergebnisse-Objekte wiederherstellen, da Firebase diese löscht
+                spiele.forEach(match => { if (!match.ergebnisse) match.ergebnisse = {}; });
+            } else {
+                spiele = JSON.parse(JSON.stringify(standardSpiele[actBewerb][actGroup]));
+                currentDbRef.set(spiele);
+            }
+            
+            updateProgressBar();
+            if(document.querySelectorAll('.tab-btn')[0].classList.contains('active')) {
+                renderSpiele();
+            } else {
+                berechneRangliste();
+            }
+        });
+    }
+
+    function changeBewerb() {
+        actBewerb = document.getElementById('bewerbDropdown').value;
+        safeStorage.setItem('steindorfer_bewerb', actBewerb);
+        actGroup = gruppenStruktur[actBewerb][0];
+        changeState();
+    }
+
+    function changeGroup() {
+        actGroup = document.getElementById('groupDropdown').value;
+        safeStorage.setItem('steindorfer_group_' + actBewerb, actGroup);
+        changeState();
+    }
+
+    function changeUser() {
+        currentUser = document.getElementById('userDropdown').value;
+        safeStorage.setItem('steindorfer_user_' + actBewerb + actGroup, currentUser);
+        renderSpiele();
+    }
+
+    function changeState() {
+        initSelects();
+        listenToFirebase();
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if(tab === 'spiele') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('tab-spiele').classList.add('active');
+            renderSpiele();
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('tab-rangliste').classList.add('active');
+            berechneRangliste();
+        }
+    }
+
+    function updateProgressBar() {
+        const gesamtSpiele = spiele.filter(match => !match.cancelled).length;
+        const gespilteSpiele = spiele.filter(match => match.gespielt && !match.cancelled).length;
+        const prozent = gesamtSpiele > 0 ? Math.round((gespilteSpiele / gesamtSpiele) * 100) : 0;
+        document.getElementById('progress-bar').style.width = prozent + '%';
+        document.getElementById('progress-stats').innerText = `${gespilteSpiele} / ${gesamtSpiele} Spiele (${prozent}%)`;
+    }
+
+    function renderSpiele() {
+        const liste = document.getElementById('spiele-liste');
+        liste.innerHTML = '';
+        let aktuelleRunde = "";
+        
+        spiele.forEach(match => {
+            if (match.runde !== aktuelleRunde) {
+                aktuelleRunde = match.runde;
+                liste.innerHTML += `<div class="runde-header">${aktuelleRunde} <span class="runde-datum">(${match.datum})</span></div>`;
+            }
+            
+            const card = document.createElement('div');
+            card.className = 'match-card';
+            
+            // Berechtigungsprüfung für das jeweilige Spiel
+            const hasPermission = darfErgebnisEintragen(match, currentUser);
+            
+            let statusClass = match.gespielt ? 'status-gesplayed' : 'status-offen';
+            if(match.cancelled) statusClass = 'status-cancelled';
+
+            let spielerHTML = (actBewerb === 'Doppel') 
+                ? `<strong>Pool:</strong> ` + match.spieler.map((s, idx) => idx === 0 ? `<span class="organisator">${s}</span>` : s).join(', ')
+                : `<div style="font-size: 1.1rem; text-align: center; font-weight: bold; margin: 10px 0;">${match.spieler[0]} <span style="color:#bdc3c7;">vs.</span> ${match.spieler[1]}</div>`;
+
+            let ergebnisHTML = '', actionButton = '';
+            
+            if (match.cancelled) {
+                ergebnisHTML = '<div class="ergebnis-text" style="color: var(--accent); text-align:center;">Spiel annulliert ❌</div>';
+                actionButton = `<button class="btn btn-locked" disabled>Kein Spiel möglich 🔒</button>`;
+            } else if (match.gespielt) {
+                const trenner = actBewerb === 'Doppel' ? ' Games | ' : ' Sätze <br> ';
+                const suffix = actBewerb === 'Doppel' ? ' Games' : ' Sätze';
+                ergebnisHTML = '<div class="ergebnis-text">' + match.spieler.map(s => `${s}: ${match.ergebnisse[s]}${suffix}`).join(trenner) + '</div>';
+                
+                actionButton = hasPermission ? 
+                    `<button class="btn btn-edit" onclick="openModal('${match.id}')">Bearbeiten</button>` : 
+                    `<button class="btn btn-locked" onclick="alert('Nur der Admin oder die beteiligten Spieler dürfen dieses Ergebnis bearbeiten.')">Gesperrt 🔒</button>`;
+            } else {
+                actionButton = hasPermission ? 
+                    `<button class="btn" onclick="openModal('${match.id}')">Eintragen</button>` : 
+                    `<button class="btn btn-locked" onclick="alert('Nur der Admin oder die beteiligten Spieler dürfen dieses Ergebnis eintragen.')">Eintragen 🔒</button>`;
+            }
+
+            card.innerHTML = `<div class="match-status ${statusClass}">${match.cancelled ? 'Abgesagt' : (match.gespielt ? 'Abgeschlossen' : 'Offen')}</div><div>${spielerHTML}</div>${ergebnisHTML}${actionButton}`;
+            liste.appendChild(card);
+        });
+    }
+
+    function openModal(id) {
+        const match = spiele.find(s => s.id === id);
+        if (match.cancelled) return;
+        
+        document.getElementById('matchId').value = id;
+        const isEinzel = actBewerb === 'Einzel';
+        document.getElementById('modalTitle').innerText = isEinzel ? "Sätze eintragen" : "Games eintragen";
+        document.getElementById('modalHint').innerText = isEinzel ? "Auf 2 Gewinnsätze (0, 1 oder 2 eintragen)." : "Gewonnene Games aller Sätze zusammenzählen.";
+        
+        const inputsContainer = document.getElementById('modalInputs');
+        inputsContainer.innerHTML = '';
+        match.spieler.forEach((spieler, idx) => {
+            // FIX: Sichere Abfrage für match.ergebnisse um "undefined" Laufzeitfehler zu vermeiden
+            const alterWert = (match.ergebnisse && match.ergebnisse[spieler] !== undefined) ? match.ergebnisse[spieler] : '';
+            const maxAttr = isEinzel ? 'max="2"' : '';
+            inputsContainer.innerHTML += `
+                <div class="input-group">
+                    <label>${spieler}</label>
+                    <input type="number" id="playerScore_${idx}" data-name="${spieler}" min="0" ${maxAttr} inputmode="numeric" pattern="[0-9]*" value="${alterWert}">
+                </div>`;
+        });
+        document.getElementById('scoreModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('scoreModal').style.display = 'none'; }
+
+    function saveScore() {
+        const id = document.getElementById('matchId').value;
+        const match = spiele.find(s => s.id === id);
+        
+        // Letzte Sicherheitsabfrage vor dem Speichern in die Datenbank
+        if (!darfErgebnisEintragen(match, currentUser)) {
+            alert('Keine Berechtigung! Das Ergebnis wurde nicht gespeichert.');
+            closeModal();
+            return;
+        }
+
+        let neueErgebnisse = {};
+        
+        match.spieler.forEach((spieler, idx) => {
+            const val = parseInt(document.getElementById(`playerScore_${idx}`).value);
+            neueErgebnisse[spieler] = isNaN(val) ? 0 : val;
+        });
+
+        if (actBewerb === 'Einzel') {
+            const v1 = neueErgebnisse[match.spieler[0]];
+            const v2 = neueErgebnisse[match.spieler[1]];
+            if (v1 !== 2 && v2 !== 2) { alert("Fehler: Ein Spieler muss exakt 2 Gewinnsätze haben!"); return; }
+            if (v1 === 2 && v2 === 2) { alert("Fehler: Es können nicht beide Spieler 2 Sätze gewinnen!"); return; }
+        }
+
+        match.ergebnisse = neueErgebnisse;
+        match.gespielt = true;
+        
+        if (currentDbRef) {
+            currentDbRef.set(spiele);
+        }
+        closeModal();
+    }
+
+    function berechneRangliste() {
+        const header = document.getElementById('ranking-header');
+        if (actBewerb === 'Einzel') {
+            header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Siege</th><th style="text-align: right;">Sätze</th>`;
+        } else {
+            header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Games</th>`;
+        }
+
+        const stats = {};
+        spielerListen[actBewerb][actGroup].filter(s => s !== "Gast").forEach(s => { stats[s] = { games: 0, siege: 0, saetze: 0 }; });
+        
+        spiele.forEach(match => {
+            if (match.gespielt && !match.cancelled) {
+                if (actBewerb === 'Einzel') {
+                    const p1 = match.spieler[0]; const p2 = match.spieler[1];
+                    const s1 = match.ergebnisse[p1] || 0; const s2 = match.ergebnisse[p2] || 0;
+                    stats[p1].saetze += s1; stats[p2].saetze += s2;
+                    if (s1 > s2) stats[p1].siege += 1;
+                    if (s2 > s1) stats[p2].siege += 1;
+                } else {
+                    match.spieler.forEach(spieler => { stats[spieler].games += (match.ergebnisse[spieler] || 0); });
+                }
+            }
+        });
+        
+        let sortiert = Object.keys(stats).map(key => ({ name: key, ...stats[key] }));
+        if (actBewerb === 'Einzel') {
+            sortiert.sort((a, b) => (b.siege !== a.siege) ? (b.siege - a.siege) : (b.saetze - a.saetze));
+        } else {
+            sortiert.sort((a, b) => b.games - a.games);
+        }
+
+        const tbody = document.getElementById('rangliste-body');
+        tbody.innerHTML = '';
+        sortiert.forEach((spieler, index) => {
+            let platzText = index + 1;
+            if(index === 0) platzText = '<span class="podium">1🥇</span>';
+            if(index === 1) platzText = '2🥈';
+            if(index === 2) platzText = '3🥉';
+            
+            if (actBewerb === 'Einzel') {
+                tbody.innerHTML += `<tr><td>${platzText}</td><td><strong>${spieler.name}</strong></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.siege}</td><td style="text-align: right;">${spieler.saetze}</td></tr>`;
+            } else {
+                tbody.innerHTML += `<tr><td>${platzText}</td><td><strong>${spieler.name}</strong></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.games}</td></tr>`;
+            }
+        });
+    }
+
+    function resetAllData() {
+        if (prompt("PIN eingeben (2026):") === "2026" && confirm("Diese Gruppe online zurücksetzen?")) {
+            const standard = JSON.parse(JSON.stringify(standardSpiele[actBewerb][actGroup]));
+            if (currentDbRef) currentDbRef.set(standard);
+            alert("Online zurückgesetzt.");
+        }
+    }
+
+    changeState();
+</script>
+</body>
+</html>
