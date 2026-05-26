@@ -289,7 +289,7 @@ let gruppenStruktur = {
 let spielerListen = {
     'Doppel': {
         'A': ["Gast", "Franky", "Andreas", "Elmar", "Andy", "Nina", "Pedro", "Günther", "Hannes", "Stefan P", "Köste", "Peter", "Robi"],
-        'B': ["Gast", "Christian", "Simone", "Zippe", "Gabi", "Sandra", "Stefan", "Wolfi", "Dietmar"],
+        'B': ["Gast", "Christian", "Simone", "Zippe", "Gabi", "Sandra", "Stefan T", "Wolfi", "Dietmar"],
         'C': ["Gast", "Anna B", "Anna K", "Sabrina", "Mandy", "Silke", "Michaela", "Bici", "Mister X"]
     },
     'Einzel': {
@@ -307,7 +307,7 @@ let playerPins = {
     "Nina": "1038", "Pedro": "6621", "Günther": "9345", "Hannes": "2184",
     "Stefan P": "4092", "Köste": "8133", "Peter": "5509", "Robi": "7291",
     "Christian": "1301", "Simone": "3920", "Zippe": "1184", "Gabi": "5039",
-    "Sandra": "8274", "Stefan": "4912", "Wolfi": "6305", "Dietmar": "2847",
+    "Sandra": "8274", "Wolfi": "6305", "Dietmar": "2847",
     "Anna B": "9156", "Anna K": "3478", "Sabrina": "6820", "Mandy": "1593",
     "Silke": "4721", "Michaela": "8365", "Bici": "2048", "Mister X": "9931",
     "Stefan T": "5710"
@@ -354,19 +354,19 @@ let turnierSpielplaene = {
     ],
     "Doppel B": [
         { runde: 1, datum: "22.5.-7.6.", team1: ["Christian*", "Simone"], team2: ["Zippe", "Gabi"] },
-        { runde: 1, datum: "22.5.-7.6.", team1: ["Sandra*", "Stefan"], team2: ["Wolfi", "Dietmar"] },
+        { runde: 1, datum: "22.5.-7.6.", team1: ["Sandra*", "Stefan T"], team2: ["Wolfi", "Dietmar"] },
         { runde: 2, datum: "5.6.-21.6.", team1: ["Simone*", "Wolfi"], team2: ["Christian", "Dietmar"] },
-        { runde: 2, datum: "5.6.-21.6.", team1: ["Gabi*", "Sandra"], team2: ["Zippe", "Stefan"] },
+        { runde: 2, datum: "5.6.-21.6.", team1: ["Gabi*", "Sandra"], team2: ["Zippe", "Stefan T"] },
         { runde: 3, datum: "19.6.-5.7.", team1: ["Christian*", "Gabi"], team2: ["Dietmar", "Sandra"] },
-        { runde: 3, datum: "19.6.-5.7.", team1: ["Wolfi*", "Stefan"], team2: ["Simone", "Zippe"] },
+        { runde: 3, datum: "19.6.-5.7.", team1: ["Wolfi*", "Stefan T"], team2: ["Simone", "Zippe"] },
         { runde: 4, datum: "3.7.-19.7.", team1: ["Dietmar*", "Simone"], team2: ["Sandra", "Zippe"] },
-        { runde: 4, datum: "3.7.-19.7.", team1: ["Stefan*", "Gabi"], team2: ["Wolfi", "Christian"] },
-        { runde: 5, datum: "17.7.-2.8.", team1: ["Stefan*", "Dietmar"], team2: ["Gabi", "Simone"] },
+        { runde: 4, datum: "3.7.-19.7.", team1: ["Stefan T*", "Gabi"], team2: ["Wolfi", "Christian"] },
+        { runde: 5, datum: "17.7.-2.8.", team1: ["Stefan T*", "Dietmar"], team2: ["Gabi", "Simone"] },
         { runde: 5, datum: "17.7.-2.8.", team1: ["Zippe*", "Christian"], team2: ["Sandra", "Wolfi"] },
         { runde: 6, datum: "31.7.-16.8.", team1: ["Gabi*", "Wolfi"], team2: ["Simone", "Sandra"] },
-        { runde: 6, datum: "31.7.-16.8.", team1: ["Dietmar*", "Zippe"], team2: ["Christian", "Stefan"] },
+        { runde: 6, datum: "31.7.-16.8.", team1: ["Dietmar*", "Zippe"], team2: ["Christian", "Stefan T"] },
         { runde: 7, datum: "14.8.-30.8.", team1: ["Wolfi*", "Zippe"], team2: ["Dietmar", "Gabi"] },
-        { runde: 7, datum: "14.8.-30.8.", team1: ["Sandra*", "Christian"], team2: ["Stefan", "Simone"] }
+        { runde: 7, datum: "14.8.-30.8.", team1: ["Sandra*", "Christian"], team2: ["Stefan T", "Simone"] }
     ],
     "Doppel C": [
         { runde: 1, datum: "22.5.-7.6.", team1: ["Mister X*", "Bici"], team2: ["Michaela", "Sabrina"] },
@@ -647,8 +647,8 @@ function renderSpiele() {
             ergebnisHTML = '<div class="ergebnis-text" style="color: var(--accent); text-align:center;">Spiel annulliert ❌</div>';
             actionButton = `<button class="btn btn-locked" disabled>Kein Spiel möglich 🔒</button>`;
         } else if (match.gespielt) {
-            const trenner = actBewerb === 'Doppel' ? ' Games | ' : ' Sätze <br> ';
-            const suffix = actBewerb === 'Doppel' ? ' Games' : ' Sätze';
+            const unit = actBewerb === 'Doppel' ? ' Games' : ' Sätze';
+	    const trenner = actBewerb === 'Doppel' ? ' | ' : ' <br> ';
             
             let detailString = match.detailErgebnis ? `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.9rem; font-weight: normal; color: #2c3e50;">Sätze: <strong>${match.detailErgebnis}</strong></div>` : '';
             
@@ -656,9 +656,9 @@ function renderSpiele() {
             if (match.eingetragenVon && match.eingetragenAm) {
                 const datumFormatiert = new Date(match.eingetragenAm).toLocaleString('de-AT', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
                 auditHTML = `<div style="font-size: 0.75rem; color: #95a5a6; text-align: center; margin-top: -5px; margin-bottom: 12px;">Eingetragen von <strong>${match.eingetragenVon}</strong> am ${datumFormatiert}</div>`;
-            }
+           }
             
-            ergebnisHTML = '<div class="ergebnis-text"><strong>' + match.spieler.map(s => `${s}: ${match.ergebnisse[s]}${suffix}`).join(trenner) + '</strong>' + detailString + '</div>' + auditHTML;
+ergebnisHTML = '<div class="ergebnis-text"><strong>' + match.spieler.map(s => `${s}: ${match.ergebnisse[s]}${unit}`).join(trenner) + '</strong>' + detailString + '</div>';
             
             actionButton = hasPermission ? 
                 `<button class="btn btn-edit" onclick="openModal('${match.id}')">Bearbeiten</button>` : 
