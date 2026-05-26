@@ -199,6 +199,7 @@
                 <input type="file" id="importFileField" accept=".json" style="display: none;" onchange="importTournamentData(event)">
             </div>
             <button class="btn btn-reset" onclick="resetAllData()">Aktuelle Gruppe zurücksetzen 🔒</button>
+            <button class="btn btn-reset" onclick="alleGruppenZuruecksetzen()" style="background-color: #c0392b; margin-top: 10px;">⚠️ ALLE Gruppen zurücksetzen (Gesamtes Turnier löschen)</button>
         </div>
     </div>
 
@@ -993,6 +994,37 @@ function resetAllData() {
         const standard = JSON.parse(JSON.stringify(standardSpiele[actBewerb][actGroup]));
         if (currentDbRef) currentDbRef.set(standard);
         alert("Online zurückgesetzt.");
+    }
+}
+
+function alleGruppenZuruecksetzen() {
+    if (currentUser !== 'Admin') {
+        alert("Fehler: Nur der Admin darf das gesamte Turnier zurücksetzen.");
+        return;
+    }
+
+    const ersteAbfrage = confirm("WARNUNG:\nMöchtest du wirklich das GESAMTE Turnier zurücksetzen?\nDadurch werden die Ergebnisse ALLER Gruppen unwiderruflich gelöscht!");
+    
+    if (ersteAbfrage) {
+        if (prompt("Zur endgültigen Sicherheit Admin-PIN eingeben:") === playerPins["Admin"]) {
+            const zweiteAbfrage = confirm("Bist du dir absolut sicher? Diese Aktion kann NICHT rückgängig gemacht werden!");
+            
+            if (zweiteAbfrage) {
+                document.getElementById('spiele-liste').innerHTML = '<p style="text-align:center; padding: 20px;">Setze gesamtes Turnier zurück...</p>';
+                
+                database.ref('turnier').remove()
+                    .then(() => {
+                        alert("Das gesamte Turnier wurde erfolgreich zurückgesetzt.");
+                        location.reload();
+                    })
+                    .catch((error) => {
+                        alert("Fehler beim Zurücksetzen des Turniers: " + error.message);
+                        location.reload();
+                    });
+            }
+        } else {
+            alert("Falscher PIN! Aktion abgebrochen.");
+        }
     }
 }
 
