@@ -552,7 +552,7 @@ function generiereStandardSpiele() {
 // -------------------------------------------------------------------------
 let actBewerb = safeStorage.getItem('steindorfer_bewerb') || 'Doppel';
 let actGroup = safeStorage.getItem('steindorfer_group_' + actBewerb) || 'A';
-let currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup) || 'Gast';
+let currentUser = 'Gast'; // Immer als Gast starten – PIN wird bei Bedarf abgefragt
 
 let spiele = [];
 let currentDbRef = null;
@@ -577,8 +577,10 @@ function initSelects() {
     if (isAdminLoggedIn) {
         currentUser = 'Admin';
     } else {
-        currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup) || 'Gast';
-        if(!Array.from(uDrop.options).some(opt => opt.value === currentUser)) currentUser = 'Gast';
+        // Prüfen ob der aktuelle User in der neuen Gruppe gültig ist – sonst Gast
+        if (!Array.from(uDrop.options).some(opt => opt.value === currentUser)) {
+            currentUser = 'Gast';
+        }
     }
     uDrop.value = currentUser;
     
@@ -653,7 +655,6 @@ function changeUser() {
 
     currentUser = selectedUser;
     isAdminLoggedIn = (currentUser === 'Admin');
-    safeStorage.setItem('steindorfer_user_' + actBewerb + actGroup, currentUser);
     
     toggleAdminZone();
     renderSpiele();
