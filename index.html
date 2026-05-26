@@ -120,8 +120,8 @@
         
         #admin-zone { display: none; margin-top: 25px; padding-top: 15px; border-top: 2px dashed #bdc3c7; }
         
-        .backup-zone { display: flex; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px dashed #bdc3c7; }
-        .btn-backup { font-size: 0.85rem; padding: 10px; margin-top: 0; }
+        .backup-zone { display: flex; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px dashed #bdc3c7; flex-wrap: wrap; }
+        .btn-backup { font-size: 0.85rem; padding: 10px; margin-top: 0; flex: 1; min-width: 140px; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.8); z-index: 200; justify-content: center; align-items: center; padding: 15px; backdrop-filter: blur(3px); }
         .modal-content { background: white; border-radius: 12px; padding: 25px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; }
@@ -198,6 +198,9 @@
                 <button class="btn btn-backup" style="background: #2980b9;" onclick="triggerImport()">Backup Importieren 📂</button>
                 <input type="file" id="importFileField" accept=".json" style="display: none;" onchange="importTournamentData(event)">
             </div>
+            
+            <button class="btn btn-backup" style="background: #8e44ad; width: 100%; margin-top: 15px;" onclick="forceConfigSync()">⚙️ Code-Konfiguration in DB hochladen (Sync)</button>
+            
             <button class="btn btn-reset" onclick="resetAllData()">Aktuelle Gruppe zurücksetzen 🔒</button>
             <button class="btn btn-reset" onclick="alleGruppenZuruecksetzen()" style="background-color: #c0392b; margin-top: 10px;">⚠️ ALLE Gruppen zurücksetzen (Gesamtes Turnier löschen)</button>
         </div>
@@ -1028,6 +1031,21 @@ function alleGruppenZuruecksetzen() {
     }
 }
 
+function forceConfigSync() {
+    if (currentUser !== 'Admin') return;
+    if (confirm("⚙️ MÖCHTEST DU DIE KONFIGURATION ÜBERSCHREIBEN?\n\nHiermit werden die lokal im Code hinterlegten Spielerlisten, Turnierpläne und PINs in die Datenbank hochgeladen. Eventuelle spätere Online-Änderungen an der Config gehen dabei verloren!")) {
+        database.ref('config').set({
+            gruppenStruktur: gruppenStruktur,
+            spielerListen: spielerListen,
+            turnierSpielplaene: turnierSpielplaene,
+            playerPins: playerPins
+        }).then(() => {
+            alert("Konfiguration erfolgreich hochgeladen! Die Seite wird nun neu geladen.");
+            location.reload();
+        }).catch(err => alert("Fehler beim Hochladen: " + err));
+    }
+}
+
 // -------------------------------------------------------------------------
 // 9. APP INITIALISIERUNG (Config aus Firebase laden)
 // -------------------------------------------------------------------------
@@ -1036,28 +1054,34 @@ function initApp() {
     
     const configRef = database.ref('config');
     configRef.once('value').then((snapshot) => {
-        if (snapshot.exists()) {
-            const configData = snapshot.val();
-            gruppenStruktur = configData.gruppenStruktur || gruppenStruktur;
-            spielerListen = configData.spielerListen || spielerListen;
-            turnierSpielplaene = configData.turnierSpielplaene || turnierSpielplaene;
-            playerPins = configData.playerPins || playerPins;
-            
-            startAppLogic();
-        } else {
-            console.log("Erster Start: Pushe lokale Config in die Firebase...");
-            configRef.set({
-                gruppenStruktur: gruppenStruktur,
-                spielerListen: spielerListen,
-                turnierSpielplaene: turnierSpielplaene,
-                playerPins: playerPins
-            }).then(() => {
+        const data = snapshot.val() || {};
+        let updatesNeeded = false;
+        let updates = {};
+
+        // Prüfen, ob einzelne Config-Teile fehlen und diese gegebenenfalls ergänzen
+        if (data.gruppenStruktur) { gruppenStruktur = data.gruppenStruktur; } 
+        else { updates.gruppenStruktur = gruppenStruktur; updatesNeeded = true; }
+
+        if (data.spielerListen) { spielerListen = data.spielerListen; } 
+        else { updates.spielerListen = spielerListen; updatesNeeded = true; }
+
+        if (data.turnierSpielplaene) { turnierSpielplaene = data.turnierSpielplaene; } 
+        else { updates.turnierSpielplaene = turnierSpielplaene; updatesNeeded = true; }
+
+        if (data.playerPins) { playerPins = data.playerPins; } 
+        else { updates.playerPins = playerPins; updatesNeeded = true; }
+
+        // Wenn Teile gefehlt haben, lade sie jetzt in die Datenbank hoch
+        if (updatesNeeded) {
+            console.log("Ergänze fehlende Konfiguration (z.B. Spielerlisten) in der Datenbank...");
+            configRef.update(updates).then(() => {
                 startAppLogic();
             });
+        } else {
+            startAppLogic();
         }
     }).catch((error) => {
         alert("Verbindungsfehler zur Datenbank: " + error.message);
-        // Fallback: Mit lokalen Daten starten
         startAppLogic();
     });
 }
