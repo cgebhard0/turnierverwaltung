@@ -123,8 +123,6 @@
         .btn-reset:hover { background: #c0392b; }
         
 
-
-
         /* ── Admin-Zone Styling ── */
         #admin-zone { display: none; margin-top: 25px; padding-top: 15px; border-top: 2px dashed #bdc3c7; }
 
@@ -161,20 +159,21 @@
         }
         .admin-btn-full { width: 100%; }
 
-        .admin-btn-green  { background: #27ae60; }
-        .admin-btn-green:hover  { background: #219a52; }
-        .admin-btn-blue   { background: #2980b9; }
-        .admin-btn-blue:hover   { background: #2471a3; }
-        .admin-btn-teal   { background: #16a085; }
-        .admin-btn-teal:hover   { background: #12876f; }
-        .admin-btn-dark   { background: #2c3e50; }
-        .admin-btn-dark:hover   { background: #1a252f; }
-        .admin-btn-purple { background: #8e44ad; }
-        .admin-btn-purple:hover { background: #7d3c98; }
-        .admin-btn-red    { background: #e74c3c; }
-        .admin-btn-red:hover    { background: #cb4335; }
+        .admin-btn-green   { background: #27ae60; }
+        .admin-btn-green:hover   { background: #219a52; }
+        .admin-btn-blue    { background: #2980b9; }
+        .admin-btn-blue:hover    { background: #2471a3; }
+        .admin-btn-teal    { background: #16a085; }
+        .admin-btn-teal:hover    { background: #12876f; }
+        .admin-btn-dark    { background: #2c3e50; }
+        .admin-btn-dark:hover    { background: #1a252f; }
+        .admin-btn-purple  { background: #8e44ad; }
+        .admin-btn-purple:hover  { background: #7d3c98; }
+        .admin-btn-red     { background: #e74c3c; }
+        .admin-btn-red:hover     { background: #cb4335; }
         .admin-btn-darkred { background: #c0392b; }
         .admin-btn-darkred:hover { background: #a93226; }
+
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.8); z-index: 200; justify-content: center; align-items: center; padding: 15px; backdrop-filter: blur(3px); }
         .modal-content { background: white; border-radius: 12px; padding: 25px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; }
@@ -577,7 +576,6 @@ function initSelects() {
     if (isAdminLoggedIn) {
         currentUser = 'Admin';
     } else {
-        // Prüfen ob der aktuelle User in der neuen Gruppe gültig ist – sonst Gast
         if (!Array.from(uDrop.options).some(opt => opt.value === currentUser)) {
             currentUser = 'Gast';
         }
@@ -1175,7 +1173,6 @@ function downloadCSV(rows, filename) {
         }).join(',')
     ).join('\n');
 
-    // BOM für korrekte UTF-8-Darstellung in Excel
     const BOM = '\uFEFF';
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1189,13 +1186,9 @@ function downloadCSV(rows, filename) {
 }
 
 function exportSpielerCSV() {
-    if (currentUser !== 'Admin') {
-        alert("Fehler: Nur der Admin darf exportieren.");
-        return;
-    }
+    if (currentUser !== 'Admin') { alert("Nur der Admin darf exportieren."); return; }
 
     const rows = [['Name', 'PIN']];
-
     const bereitsExportiert = new Set();
     Object.keys(spielerListen).forEach(bewerb => {
         Object.keys(spielerListen[bewerb]).forEach(gruppe => {
@@ -1213,10 +1206,7 @@ function exportSpielerCSV() {
 }
 
 function exportSpielplanCSV() {
-    if (currentUser !== 'Admin') {
-        alert("Fehler: Nur der Admin darf exportieren.");
-        return;
-    }
+    if (currentUser !== 'Admin') { alert("Nur der Admin darf exportieren."); return; }
 
     const rows = [['Bewerb', 'Gruppe', 'Runde', 'Datum', 'Team1_Spieler1', 'Team1_Spieler2', 'Team2_Spieler1', 'Team2_Spieler2', 'Organisator']];
 
@@ -1224,24 +1214,13 @@ function exportSpielplanCSV() {
         const parts = key.split(' ');
         const bewerb = parts[0];
         const gruppe = parts[1];
-
         turnierSpielplaene[key].forEach(spiel => {
             const t1 = spiel.team1.map(n => n.replace('*', ''));
             const t2 = spiel.team2.map(n => n.replace('*', ''));
             const orgEntry = spiel.team1.find(n => n.includes('*'));
             const organisator = orgEntry ? orgEntry.replace('*', '') : '';
-
-            rows.push([
-                bewerb,
-                gruppe,
-                spiel.runde,
-                spiel.datum || '',
-                t1[0] || '',
-                t1[1] || '',
-                t2[0] || '',
-                t2[1] || '',
-                organisator
-            ]);
+            rows.push([bewerb, gruppe, spiel.runde, spiel.datum || '',
+                t1[0] || '', t1[1] || '', t2[0] || '', t2[1] || '', organisator]);
         });
     });
 
