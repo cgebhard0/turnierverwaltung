@@ -21,9 +21,31 @@
         
         body { background-color: var(--bg); color: var(--text); padding-bottom: 60px; -webkit-tap-highlight-color: transparent; }
         
-        header { background-color: var(--secondary); color: white; padding: 20px 10px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        header { background-color: var(--secondary); color: white; padding: 20px 10px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; align-items: center; }
         
-        /* Neuer Button-Style für den Link */
+        h1 { 
+            font-size: 1.7rem; 
+            margin: 0px auto 15px auto; /* Abstand nach unten leicht angepasst */
+            color: #f1c40f; 
+            text-transform: uppercase; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); 
+            line-height: 1.3;
+            font-weight: 900;
+            letter-spacing: 1px;
+            /* Eckiger, dezenter Rahmen */
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            padding: 8px 20px;
+        }
+        .title-sub {
+            color: #ffffff;
+            font-size: 1.2rem;
+            display: block;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            letter-spacing: 0px;
+            margin-top: 5px;
+        }
+
         .header-btn { 
             display: inline-block; 
             background-color: #f1c40f; 
@@ -33,7 +55,7 @@
             font-weight: bold; 
             padding: 8px 16px; 
             border-radius: 20px; 
-            margin-bottom: 10px; 
+            margin-bottom: 20px; /* Abstand zu den Dropdowns erhöht */
             box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
             transition: all 0.2s ease; 
             text-transform: uppercase; 
@@ -43,24 +65,6 @@
             background-color: #f39c12; 
             transform: translateY(-2px); 
             box-shadow: 0 6px 8px rgba(0,0,0,0.3); 
-        }
-        
-        h1 { 
-            font-size: 1.7rem; 
-            margin: 15px 0 20px 0; 
-            color: #f1c40f; 
-            text-transform: uppercase; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); 
-            line-height: 1.3;
-            font-weight: 900;
-            letter-spacing: 1px;
-        }
-        .title-sub {
-            color: #ffffff;
-            font-size: 1.2rem;
-            display: block;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-            letter-spacing: 0px;
         }
         
         .controls { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
@@ -118,10 +122,59 @@
         .btn-reset { background: #e74c3c; margin-top: 15px; }
         .btn-reset:hover { background: #c0392b; }
         
+
+
+
+        /* ── Admin-Zone Styling ── */
         #admin-zone { display: none; margin-top: 25px; padding-top: 15px; border-top: 2px dashed #bdc3c7; }
-        
-        .backup-zone { display: flex; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px dashed #bdc3c7; flex-wrap: wrap; }
-        .btn-backup { font-size: 0.85rem; padding: 10px; margin-top: 0; flex: 1; min-width: 140px; }
+
+        .admin-section {
+            background: #f8f9fa;
+            border: 1px solid #e0e3e7;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+        .admin-section-danger {
+            background: #fff5f5;
+            border-color: #f5c6cb;
+        }
+        .admin-section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+        .admin-section-label-danger { color: #c0392b; }
+
+        .admin-btn-row { display: flex; gap: 8px; }
+
+        .admin-btn {
+            flex: 1;
+            font-size: 0.85rem;
+            padding: 10px 12px;
+            margin-top: 0;
+            border-radius: 7px;
+            font-weight: 600;
+        }
+        .admin-btn-full { width: 100%; }
+
+        .admin-btn-green  { background: #27ae60; }
+        .admin-btn-green:hover  { background: #219a52; }
+        .admin-btn-blue   { background: #2980b9; }
+        .admin-btn-blue:hover   { background: #2471a3; }
+        .admin-btn-teal   { background: #16a085; }
+        .admin-btn-teal:hover   { background: #12876f; }
+        .admin-btn-dark   { background: #2c3e50; }
+        .admin-btn-dark:hover   { background: #1a252f; }
+        .admin-btn-purple { background: #8e44ad; }
+        .admin-btn-purple:hover { background: #7d3c98; }
+        .admin-btn-red    { background: #e74c3c; }
+        .admin-btn-red:hover    { background: #cb4335; }
+        .admin-btn-darkred { background: #c0392b; }
+        .admin-btn-darkred:hover { background: #a93226; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.8); z-index: 200; justify-content: center; align-items: center; padding: 15px; backdrop-filter: blur(3px); }
         .modal-content { background: white; border-radius: 12px; padding: 25px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; }
@@ -151,8 +204,9 @@
 <body>
 
 <header>
-    <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz online buchen</a>
     <h1>🎾 Turnierverwaltung <span class="title-sub">SC Steindorf</span></h1>
+    <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz online buchen</a>
+    
     <div class="controls">
         <div class="select-container">
             Bewerb: 
@@ -193,16 +247,33 @@
         <div id="spiele-liste"></div>
         
         <div id="admin-zone">
-            <div class="backup-zone">
-                <button class="btn btn-backup" style="background: #27ae60;" onclick="exportTournamentData()">Backup Exportieren 💾</button>
-                <button class="btn btn-backup" style="background: #2980b9;" onclick="triggerImport()">Backup Importieren 📂</button>
+            <div class="admin-section">
+                <div class="admin-section-label">Datensicherung</div>
+                <div class="admin-btn-row">
+                    <button class="btn admin-btn admin-btn-green" onclick="exportTournamentData()">💾 Backup erstellen</button>
+                    <button class="btn admin-btn admin-btn-blue" onclick="triggerImport()">📂 Backup laden</button>
+                </div>
                 <input type="file" id="importFileField" accept=".json" style="display: none;" onchange="importTournamentData(event)">
             </div>
-            
-            <button class="btn btn-backup" style="background: #8e44ad; width: 100%; margin-top: 15px;" onclick="forceConfigSync()">⚙️ Code-Konfiguration in DB hochladen (Sync)</button>
-            
-            <button class="btn btn-reset" onclick="resetAllData()">Aktuelle Gruppe zurücksetzen 🔒</button>
-            <button class="btn btn-reset" onclick="alleGruppenZuruecksetzen()" style="background-color: #c0392b; margin-top: 10px;">⚠️ ALLE Gruppen zurücksetzen (Gesamtes Turnier löschen)</button>
+
+            <div class="admin-section">
+                <div class="admin-section-label">CSV-Export</div>
+                <div class="admin-btn-row">
+                    <button class="btn admin-btn admin-btn-teal" onclick="exportSpielerCSV()">📋 Spielerliste</button>
+                    <button class="btn admin-btn admin-btn-dark" onclick="exportSpielplanCSV()">📅 Spielplan</button>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <div class="admin-section-label">Konfiguration</div>
+                <button class="btn admin-btn admin-btn-purple admin-btn-full" onclick="forceConfigSync()">⚙️ Konfiguration synchronisieren</button>
+            </div>
+
+            <div class="admin-section admin-section-danger">
+                <div class="admin-section-label admin-section-label-danger">⚠️ Gefahrenzone</div>
+                <button class="btn admin-btn admin-btn-red admin-btn-full" onclick="resetAllData()">🔄 Aktuelle Gruppe zurücksetzen</button>
+                <button class="btn admin-btn admin-btn-darkred admin-btn-full" style="margin-top: 8px;" onclick="alleGruppenZuruecksetzen()">🗑️ Gesamtes Turnier löschen</button>
+            </div>
         </div>
     </div>
 
@@ -485,6 +556,8 @@ let currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup
 
 let spiele = [];
 let currentDbRef = null;
+let currentTab = 'spiele';
+let isAdminLoggedIn = false;
 
 document.getElementById('bewerbDropdown').value = actBewerb;
 
@@ -501,14 +574,12 @@ function initSelects() {
         if (user !== "Gast") uDrop.innerHTML += `<option value="${user}">${user}</option>`; 
     });
     
-    currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup) || 'Gast';
-    
-    if (currentUser === 'Admin') {
-        currentUser = 'Gast';
-        safeStorage.setItem('steindorfer_user_' + actBewerb + actGroup, 'Gast');
+    if (isAdminLoggedIn) {
+        currentUser = 'Admin';
+    } else {
+        currentUser = safeStorage.getItem('steindorfer_user_' + actBewerb + actGroup) || 'Gast';
+        if(!Array.from(uDrop.options).some(opt => opt.value === currentUser)) currentUser = 'Gast';
     }
-
-    if(!Array.from(uDrop.options).some(opt => opt.value === currentUser)) currentUser = 'Gast';
     uDrop.value = currentUser;
     
     toggleAdminZone();
@@ -543,9 +614,9 @@ function listenToFirebase() {
         }
         
         updateProgressBar();
-        if(document.querySelectorAll('.tab-btn')[0].classList.contains('active')) {
+        if(currentTab === 'spiele') {
             renderSpiele();
-        } else if(document.querySelectorAll('.tab-btn')[1].classList.contains('active')) {
+        } else if(currentTab === 'rangliste') {
             berechneRangliste();
         } else {
             berechneGesamtrangliste();
@@ -572,6 +643,7 @@ function changeUser() {
 
     if (selectedUser !== 'Gast') {
         const pin = prompt(`Bitte Zugangscode für ${selectedUser} eingeben:`);
+        if (pin === null) { dropdown.value = currentUser; return; }
         if (pin !== playerPins[selectedUser]) {
             alert("Falscher Code! Zugriff verweigert.");
             dropdown.value = currentUser;
@@ -580,6 +652,7 @@ function changeUser() {
     }
 
     currentUser = selectedUser;
+    isAdminLoggedIn = (currentUser === 'Admin');
     safeStorage.setItem('steindorfer_user_' + actBewerb + actGroup, currentUser);
     
     toggleAdminZone();
@@ -592,6 +665,7 @@ function changeState() {
 }
 
 function switchTab(tab) {
+    currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     
@@ -645,7 +719,7 @@ function renderSpiele() {
             ? `<strong>Pool:</strong> ` + match.spieler.map((s, idx) => idx === 0 ? `<span class="organisator">${s}</span>` : s).join(', ')
             : `<div style="font-size: 1.1rem; text-align: center; font-weight: bold; margin: 10px 0;">${match.spieler[0]} <span style="color:#bdc3c7;">vs.</span> ${match.spieler[1]}</div>`;
 
-        let ergebnisHTML = '', actionButton = '';
+        let ergebnisHTML = '', actionButton = '', auditHTML = '';
         
         if (match.cancelled) {
             ergebnisHTML = '<div class="ergebnis-text" style="color: var(--accent); text-align:center;">Spiel annulliert ❌</div>';
@@ -656,7 +730,6 @@ function renderSpiele() {
             
             let detailString = match.detailErgebnis ? `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.9rem; font-weight: normal; color: #2c3e50;">Sätze: <strong>${match.detailErgebnis}</strong></div>` : '';
             
-            let auditHTML = '';
             if (match.eingetragenVon && match.eingetragenAm) {
                 const datumFormatiert = new Date(match.eingetragenAm).toLocaleString('de-AT', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
                 auditHTML = `<div style="font-size: 0.75rem; color: #95a5a6; text-align: center; margin-top: -5px; margin-bottom: 12px;">Eingetragen von <strong>${match.eingetragenVon}</strong> am ${datumFormatiert}</div>`;
@@ -673,14 +746,14 @@ ergebnisHTML = '<div class="ergebnis-text"><strong>' + match.spieler.map(s => `$
                 `<button class="btn btn-locked" onclick="alert('Nur der Admin oder die beteiligten Spieler dürfen dieses Ergebnis eintragen.')">Eintragen 🔒</button>`;
         }
 
-        card.innerHTML = `<div class="match-status ${statusClass}">${statusText}</div><div>${spielerHTML}</div>${ergebnisHTML}${actionButton}`;
+        card.innerHTML = `<div class="match-status ${statusClass}">${statusText}</div><div>${spielerHTML}</div>${ergebnisHTML}${auditHTML}${actionButton}`;
         liste.appendChild(card);
     });
 }
 
 function openModal(id) {
     const match = spiele.find(s => s.id === id);
-    if (match.cancelled) return;
+    if (!match || match.cancelled) return;
     
     document.getElementById('matchId').value = id;
     const isEinzel = actBewerb === 'Einzel';
@@ -895,29 +968,28 @@ function exportTournamentData() {
         return;
     }
 
-    database.ref('turnier').once('value').then((snapshot) => {
+    // Lädt die gesamte Datenbank (inklusive 'config' und 'turnier')
+    database.ref().once('value').then((snapshot) => {
         const data = snapshot.val();
         if (!data) {
-            alert("Es sind online noch keine Spieldaten zum Exportieren vorhanden.");
+            alert("Keine Daten zum Exportieren gefunden.");
             return;
         }
         
-        const exportObject = {
-            turnierData: data,
-            config: {
-                bewerb: actBewerb,
-                gruppe: actGroup,
-                timestamp: new Date().toISOString()
-            }
-        };
-
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObject, null, 2));
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
         const downloadAnchor = document.createElement('a');
+        
+        // Zeitstempel für einen eindeutigen Dateinamen generieren
+        const date = new Date();
+        const timestamp = date.toISOString().slice(0,10) + "_" + date.toTimeString().slice(0,5).replace(":", "-");
+        
         downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `sc_steindorf_turnier_backup_${new Date().toISOString().slice(0,10)}.json`);
+        downloadAnchor.setAttribute("download", `sc_steindorf_turnier_backup_complete_${timestamp}.json`);
         document.body.appendChild(downloadAnchor);
         downloadAnchor.click();
         downloadAnchor.remove();
+    }).catch((error) => {
+        alert("Fehler beim Exportieren der Daten: " + error.message);
     });
 }
 
@@ -939,7 +1011,7 @@ function importTournamentData(event) {
         return;
     }
 
-    if (!confirm("ACHTUNG: Das Laden dieser Datei überschreibt alle aktuellen Online-Spielstände unwiderruflich! Fortfahren?")) {
+    if (!confirm("ACHTUNG: Das Laden dieser Datei überschreibt alle aktuellen Online-Spielstände und Konfigurationen unwiderruflich! Fortfahren?")) {
         event.target.value = '';
         return;
     }
@@ -948,32 +1020,26 @@ function importTournamentData(event) {
     reader.onload = function(e) {
         try {
             const importedJson = JSON.parse(e.target.result);
-            let dataToImport = importedJson;
             
-            if (importedJson.turnierData) {
-                dataToImport = importedJson.turnierData;
-                
-                if (importedJson.config) {
-                    if (importedJson.config.bewerb) {
-                        actBewerb = importedJson.config.bewerb;
-                        safeStorage.setItem('steindorfer_bewerb', actBewerb);
-                    }
-                    if (importedJson.config.gruppe) {
-                        actGroup = importedJson.config.gruppe;
-                        safeStorage.setItem('steindorfer_group_' + actBewerb, actGroup);
-                    }
-                }
-            }
-
-            if (typeof dataToImport === 'object' && dataToImport !== null) {
-                database.ref('turnier').set(dataToImport, (error) => {
+            // Neues Format: Kompletter Datenbank-Dump (root)
+            if (importedJson.turnier || importedJson.config) {
+                database.ref().set(importedJson, (error) => {
                     if (error) {
                         alert("Fehler beim Sichern in Firebase: " + error.message);
                     } else {
-                        alert("Backup erfolgreich eingespielt! Konfigurationen wurden geladen.");
-                        document.getElementById('bewerbDropdown').value = actBewerb;
-                        initSelects();
-                        listenToFirebase(); 
+                        alert("Vollständiges Backup (inkl. Config) erfolgreich eingespielt!");
+                        location.reload();
+                    }
+                });
+            } 
+            // Altes Format abfangen (Abwärtskompatibilität für alte Backups)
+            else if (importedJson.turnierData) {
+                database.ref('turnier').set(importedJson.turnierData, (error) => {
+                     if (error) {
+                        alert("Fehler beim Sichern in Firebase: " + error.message);
+                    } else {
+                        alert("Altes Backup (nur Spielstände) erfolgreich eingespielt!");
+                        location.reload();
                     }
                 });
             } else {
@@ -1093,6 +1159,94 @@ function startAppLogic() {
 
 // Startschuss
 initApp();
+
+// -------------------------------------------------------------------------
+// 10. CSV-EXPORT (Spieler & Spielplan)
+// -------------------------------------------------------------------------
+function downloadCSV(rows, filename) {
+    const csvContent = rows.map(row =>
+        row.map(cell => {
+            const str = String(cell === null || cell === undefined ? '' : cell);
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
+        }).join(',')
+    ).join('\n');
+
+    // BOM für korrekte UTF-8-Darstellung in Excel
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function exportSpielerCSV() {
+    if (currentUser !== 'Admin') {
+        alert("Fehler: Nur der Admin darf exportieren.");
+        return;
+    }
+
+    const rows = [['Name', 'PIN']];
+
+    const bereitsExportiert = new Set();
+    Object.keys(spielerListen).forEach(bewerb => {
+        Object.keys(spielerListen[bewerb]).forEach(gruppe => {
+            spielerListen[bewerb][gruppe].forEach(spieler => {
+                if (spieler !== 'Gast' && !bereitsExportiert.has(spieler)) {
+                    bereitsExportiert.add(spieler);
+                    rows.push([spieler, playerPins[spieler] || '']);
+                }
+            });
+        });
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(rows, `sc_steindorf_spieler_${date}.csv`);
+}
+
+function exportSpielplanCSV() {
+    if (currentUser !== 'Admin') {
+        alert("Fehler: Nur der Admin darf exportieren.");
+        return;
+    }
+
+    const rows = [['Bewerb', 'Gruppe', 'Runde', 'Datum', 'Team1_Spieler1', 'Team1_Spieler2', 'Team2_Spieler1', 'Team2_Spieler2', 'Organisator']];
+
+    Object.keys(turnierSpielplaene).forEach(key => {
+        const parts = key.split(' ');
+        const bewerb = parts[0];
+        const gruppe = parts[1];
+
+        turnierSpielplaene[key].forEach(spiel => {
+            const t1 = spiel.team1.map(n => n.replace('*', ''));
+            const t2 = spiel.team2.map(n => n.replace('*', ''));
+            const orgEntry = spiel.team1.find(n => n.includes('*'));
+            const organisator = orgEntry ? orgEntry.replace('*', '') : '';
+
+            rows.push([
+                bewerb,
+                gruppe,
+                spiel.runde,
+                spiel.datum || '',
+                t1[0] || '',
+                t1[1] || '',
+                t2[0] || '',
+                t2[1] || '',
+                organisator
+            ]);
+        });
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(rows, `sc_steindorf_spielplan_${date}.csv`);
+}
 </script>
 </body>
 </html>
