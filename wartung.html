@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SC Steindorf – Wartung</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background-color: #a03c1e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, Helvetica, sans-serif;
+            color: white;
+            padding: 24px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 40px 36px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+        }
+
+        /* Logo */
+        .logo { margin-bottom: 28px; }
+
+        /* Wartungs-Icon */
+        .icon {
+            font-size: 3.2rem;
+            margin-bottom: 16px;
+            display: block;
+            animation: spin 6s linear infinite;
+        }
+        @keyframes spin {
+            0%   { transform: rotate(0deg); }
+            15%  { transform: rotate(20deg); }
+            30%  { transform: rotate(-20deg); }
+            45%  { transform: rotate(15deg); }
+            60%  { transform: rotate(-10deg); }
+            75%  { transform: rotate(5deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.75);
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin: 24px 0;
+        }
+
+        .info {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.55);
+            line-height: 1.7;
+        }
+
+        .info a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+        }
+
+        footer {
+            margin-top: 32px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.3px;
+        }
+
+        /* Pulsierender Punkt */
+        .pulse {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: #f39c12;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            animation: pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.4; transform: scale(0.7); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+
+        <!-- Logo -->
+        <div class="logo">
+            <svg viewBox="0 0 180 115" width="72" height="46" xmlns="http://www.w3.org/2000/svg">
+                <text x="90" y="76" text-anchor="middle" font-family="Arial,Helvetica,sans-serif"
+                    font-weight="400" font-size="80" letter-spacing="6"
+                    fill="white" stroke="#16a085" stroke-width="5" paint-order="stroke fill">SC</text>
+                <rect x="6" y="83" width="168" height="26" rx="4"
+                    fill="none" stroke="#16a085" stroke-width="2"/>
+                <text x="90" y="101" text-anchor="middle" font-family="Arial,Helvetica,sans-serif"
+                    font-weight="400" font-size="17" fill="white" letter-spacing="4">STEINDORF</text>
+            </svg>
+        </div>
+
+        <!-- Icon -->
+        <span class="icon">🔧</span>
+
+        <h1>Wartungsarbeiten</h1>
+
+        <p class="subtitle">
+            Die Turnierverwaltung wird gerade aktualisiert.<br>
+            Wir sind gleich wieder für euch da!
+        </p>
+
+        <hr class="divider">
+
+        <p class="info">
+            <span class="pulse"></span> Arbeiten laufen gerade …<br><br>
+            Bei Fragen bitte an<br>
+            <a href="mailto:christ.gebhard@gmail.com">Christian Gebhard</a> wenden.
+        </p>
+
+    </div>
+
+    <footer>© 2026 Christian Gebhard · SC Steindorf Turnierverwaltung</footer>
+
+</body>
+</html>
