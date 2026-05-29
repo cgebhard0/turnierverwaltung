@@ -1,0 +1,28 @@
+{
+  "name": "SC Steindorf Turnierverwaltung",
+  "short_name": "Turnier SC",
+  "description": "Tennisturnier-Verwaltung für den SC Steindorf",
+  "start_url": "/turnierverwaltung/",
+  "scope": "/turnierverwaltung/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#a03c1e",
+  "theme_color": "#a03c1e",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "utilities"],
+  "screenshots": []
+}
