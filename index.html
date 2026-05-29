@@ -440,6 +440,17 @@
                     v<span id="admin-version"></span> &nbsp;·&nbsp; Build <span id="admin-build"></span>
                 </div>
             </div>
+            <div class="admin-section">
+                <div class="admin-section-label">🔧 Wartung</div>
+                <div class="admin-btn-row">
+                    <button class="btn admin-btn admin-btn-full" style="background:#e67e22; margin-bottom:6px;" onclick="wartungBeginnen()">🔧 Wartung beginnen</button>
+                    <button class="btn admin-btn admin-btn-full" style="background:#27ae60;" onclick="wartungBeenden()">✅ Wartung beenden</button>
+                </div>
+                <div style="font-size:0.72rem; color:#aab0b7; margin-top:6px; text-align:center;">
+                    Admin-Zugang während Wartung: <code>?bypass</code> an URL anhängen
+                </div>
+            </div>
+
             <div class="admin-section admin-section-danger">
                 <div class="admin-section-label admin-section-label-danger">⚠️ Gefahrenzone</div>
                 <button class="btn admin-btn admin-btn-red admin-btn-full" onclick="resetAllData()">🔄 Aktuelle Gruppe zurücksetzen</button>
@@ -1333,6 +1344,21 @@ function forceConfigSync() {
     update(); // Initialzustand prüfen
 })();
 
+// ── Wartungsmodus ─────────────────────────────────────────────────────────────
+function wartungBeginnen() {
+    if (!confirm('Wartungsmodus aktivieren?\n\nAlle Besucher werden auf die Wartungsseite weitergeleitet.\nDu kannst die App weiterhin über ?bypass aufrufen.')) return;
+    database.ref('config/wartung').set(true).then(() => {
+        alert('Wartungsmodus aktiviert. Du wirst jetzt auf die Wartungsseite weitergeleitet.');
+        window.location.href = 'wartung.html';
+    }).catch(err => alert('Fehler: ' + err.message));
+}
+
+function wartungBeenden() {
+    database.ref('config/wartung').set(false).then(() => {
+        alert('Wartungsmodus deaktiviert. Die App ist wieder erreichbar.');
+    }).catch(err => alert('Fehler: ' + err.message));
+}
+
 function initApp() {
     // Versionsanzeige im Admin-Bereich befüllen
     const av = document.getElementById('admin-version');
@@ -1341,12 +1367,20 @@ function initApp() {
     if (ab) ab.textContent = BUILD_DATE;
 
     document.getElementById('spiele-liste').innerHTML = '<p style="text-align:center; padding: 20px;">Lade Turnier-Konfiguration...</p>';
-    
+
     const configRef = database.ref('config');
     configRef.once('value').then((snapshot) => {
         const data = snapshot.val() || {};
         let updatesNeeded = false;
         let updates = {};
+
+        // ── Wartungsmodus-Prüfung ──────────────────────────────────────────
+        // Bypass: ?bypass in der URL erlaubt dem Admin den Zugriff trotz Wartung
+        const isBypass = window.location.search.includes('bypass');
+        if (data.wartung === true && !isBypass) {
+            window.location.href = 'wartung.html';
+            return;
+        }
 
         // Prüfen, ob einzelne Config-Teile fehlen und diese gegebenenfalls ergänzen
         if (data.gruppenStruktur) { gruppenStruktur = data.gruppenStruktur; } 
