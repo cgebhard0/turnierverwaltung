@@ -1,0 +1,123 @@
+name: Firebase Datenbank-Backup
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'   # Sonntag  Mitternacht UTC
+    - cron: '0 0 * * 3'   # Mittwoch Mitternacht UTC
+  workflow_dispatch:        # Manueller Start über GitHub-UI
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # Zum Committen der Backup-Dateien
+
+    steps:
+      # ── 1. Repository auschecken ─────────────────────────────────────────
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # ── 2. Firebase-Datenbank herunterladen ──────────────────────────────
+      - name: Firebase-Backup erstellen
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+          mkdir -p backups
+
+          # Firebase Realtime Database REST API
+          # Öffentliche Leseberechtigung – kein Auth-Token benötigt
+          # (Falls Regeln später eingeschränkt werden: FIREBASE_SECRET als GitHub Secret hinterlegen)
+          DB_URL="https://steindorf-turnier-default-rtdb.europe-west1.firebasedatabase.app/.json"
+
+          echo "Lade Daten von $DB_URL …"
+          curl -sf "$DB_URL" \
+            -o "backups/backup_${DATE}.json" \
+            --retry 3 --retry-delay 5
+
+          # Prüfen ob Datei nicht leer ist
+          SIZE=$(wc -c < "backups/backup_${DATE}.json")
+          if [ "$SIZE" -lt 10 ]; then
+            echo "FEHLER: Backup-Datei ist leer oder ungültig (${SIZE} bytes)"
+            exit 1
+          fi
+          echo "Backup erstellt: backups/backup_${DATE}.json (${SIZE} bytes)"
+
+      # ── 3. Alte Backups verwalten (Archiv & Bereinigung) ─────────────────
+      - name: Alte Backups verwalten
+        run: |
+          python3 - <<'PYEOF'
+          import os, shutil
+          from pathlib import Path
+          from datetime import datetime, timedelta
+
+          backup_dir  = Path('backups')
+          archive_dir = backup_dir / 'archive'
+          archive_dir.mkdir(exist_ok=True)
+
+          cutoff = datetime.utcnow() - timedelta(days=365)
+
+          # Alle Backup-Dateien (nicht im Archiv-Unterordner)
+          all_backups = sorted(backup_dir.glob('backup_*.json'))
+
+          # Nach Jahr-Monat gruppieren → letztes Backup je Monat ermitteln
+          by_month = {}
+          for f in all_backups:
+              try:
+                  date = datetime.strptime(f.stem[7:], '%Y-%m-%d')  # "backup_" = 7 Zeichen
+              except ValueError:
+                  continue
+              key = (date.year, date.month)
+              # Nur das späteste Backup pro Monat merken
+              if key not in by_month or date > by_month[key][0]:
+                  by_month[key] = (date, f)
+
+          # Menge der zu archivierenden Dateien (letztes Backup je Monat)
+          monthly_archive = {f for _, f in by_month.values()}
+
+          archived, deleted = 0, 0
+
+          for f in all_backups:
+              try:
+                  date = datetime.strptime(f.stem[7:], '%Y-%m-%d')
+              except ValueError:
+                  continue
+
+              if date >= cutoff:
+                  continue   # Noch nicht 12 Monate alt → behalten
+
+              if f in monthly_archive:
+                  # Dauerhaft archivieren: in archive/YYYY/MM/
+                  month_dir = archive_dir / f'{date.year}' / f'{date.month:02d}'
+                  month_dir.mkdir(parents=True, exist_ok=True)
+                  dest = month_dir / f.name
+                  if not dest.exists():
+                      shutil.move(str(f), str(dest))
+                      print(f'  ARCHIVIERT: {f.name} → archive/{date.year}/{date.month:02d}/')
+                      archived += 1
+              else:
+                  # Löschen
+                  f.unlink()
+                  print(f'  GELÖSCHT:   {f.name} (älter als 12 Monate, kein Monatsabschluss)')
+                  deleted += 1
+
+          print(f'\nZusammenfassung: {archived} archiviert, {deleted} gelöscht.')
+
+          # Archiv-Inhalt anzeigen
+          for p in sorted(archive_dir.rglob('*.json')):
+              print(f'  Archiv: {p.relative_to(backup_dir)}')
+          PYEOF
+
+      # ── 4. Änderungen committen ──────────────────────────────────────────
+      - name: Backup committen
+        run: |
+          git config user.name  "GitHub Actions – Backup Bot"
+          git config user.email "actions@github.com"
+
+          git add backups/
+          git diff --staged --quiet && echo "Keine Änderungen." && exit 0
+
+          DATE=$(date -u +%Y-%m-%d)
+          COUNT=$(ls backups/backup_*.json 2>/dev/null | wc -l)
+          git commit -m "🗄 Automatisches Backup ${DATE} (${COUNT} Backups gesamt)"
+          git push
+          echo "Backup erfolgreich committed."
