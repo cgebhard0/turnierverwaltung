@@ -104,9 +104,10 @@
             text-shadow: none;
             display: inline-flex;
             align-items: center;
-            gap: 16px;
+            justify-content: center;
+            gap: 10px;
             border: 1px solid rgba(255, 255, 255, 0.35);
-            padding: 8px 24px;
+            padding: 8px 22px;
         }
         .title-sub {
             color: #ffffff;
@@ -117,57 +118,64 @@
             margin-top: 5px;
         }
 
-        .header-btn { 
-            display: inline-block; 
-            background-color: #16a085; 
-            color: white; 
-            text-decoration: none; 
-            font-size: 0.85rem; 
-            font-weight: bold; 
-            padding: 8px 16px; 
-            border-radius: 20px; 
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
-            transition: all 0.2s ease; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
+        /* Primäre Aktion – einziger voll gefüllter Türkis-Button */
+        .header-btn {
+            display: inline-flex;
+            align-items: center;
+            background-color: #16a085;
+            color: white;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 8px 18px;
+            border-radius: 20px;
+            margin: 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .header-title-row {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 14px;
         }
         .header-title-row h1 {
             margin: 0;
         }
-        .header-help-stack {
+        /* Werkzeugleiste: Hilfe-Links + primäre Aktion gruppiert */
+        .header-toolbar {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
-            align-self: stretch;
+            flex-wrap: wrap;
             justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
         }
+        /* Sekundäre Links – einheitlicher „Glas"-Stil, abgestimmt auf die Auswahl-Zeile */
         .header-help {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             color: rgba(255,255,255,0.95);
-            font-size: 0.65rem;
+            font-size: 0.68rem;
             font-family: Arial, Helvetica, sans-serif;
             letter-spacing: 1px;
             text-decoration: none;
             text-transform: uppercase;
-            background: rgba(255,255,255,0.16);
-            border: 1px solid rgba(255,255,255,0.45);
-            border-radius: 4px;
-            padding: 5px 10px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            padding: 7px 14px;
             white-space: nowrap;
             transition: all 0.2s;
         }
         .header-help:hover {
             color: #fff;
-            border-color: rgba(255,255,255,0.8);
+            border-color: rgba(255,255,255,0.6);
             background: rgba(255,255,255,0.28);
         }
         .header-btn:hover {
@@ -175,13 +183,25 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0,0,0,0.3);
         }
-        
-        .controls { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-        
-        .select-container { background: rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; align-items: center; transition: background 0.2s; }
-        .select-container:hover { background: rgba(255,255,255,0.25); }
+
+        /* Einstellungen – durch feine Linie von den Aktionen getrennt */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.18);
+            width: 100%;
+            max-width: 560px;
+        }
+
+        .select-container { background: rgba(255,255,255,0.15); padding: 6px 10px 6px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); font-size: 0.85rem; display: flex; align-items: center; transition: all 0.2s; cursor: pointer; }
+        .select-container:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6); }
         .select-container select { background: transparent; color: white; border: none; font-weight: bold; font-size: 0.85rem; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; padding-left: 5px; }
         .select-container select option { color: black; background-color: white; }
+        /* ▾ signalisiert: auswählbar */
+        .select-container::after { content: "\25BE"; color: rgba(255,255,255,0.8); font-size: 0.7rem; margin-left: 2px; pointer-events: none; }
 
         .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
         
@@ -319,20 +339,22 @@
             h1 {
                 font-size: 1.1rem;
                 letter-spacing: 2px;
-                padding: 7px 12px;
-                gap: 10px;
-                margin-bottom: 10px;
+                padding: 6px 14px;
+                gap: 8px;
+                margin-bottom: 8px;
             }
             h1 svg { width: 48px; height: 31px; }
 
+            .header-toolbar { gap: 8px; margin-bottom: 12px; }
+            .header-help { font-size: 0.62rem; padding: 6px 12px; }
             .header-btn {
                 font-size: 0.75rem;
-                padding: 6px 14px;
-                margin-bottom: 12px;
+                padding: 7px 14px;
+                margin: 0;
             }
 
             /* Dropdowns */
-            .controls { gap: 6px; }
+            .controls { gap: 6px; padding-top: 12px; }
             .select-container { font-size: 0.8rem; padding: 5px 8px; }
             .select-container select { font-size: 0.8rem; }
 
@@ -406,13 +428,14 @@
             </svg>
             <span>Turnierverwaltung</span>
         </h1>
-        <div class="header-help-stack">
-            <a href="https://cgebhard0.github.io/turnierverwaltung/Spieler_Anleitung.pdf" class="header-help" target="_blank">Anleitung</a>
-            <a href="https://cgebhard0.github.io/turnierverwaltung/tennis_regeln_anfaenger_v2.pdf" class="header-help" target="_blank">Tennisregeln</a>
-        </div>
     </div>
-    <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz buchen</a>
-    
+
+    <div class="header-toolbar">
+        <a href="https://cgebhard0.github.io/turnierverwaltung/Spieler_Anleitung.pdf" class="header-help" target="_blank">Anleitung</a>
+        <a href="https://cgebhard0.github.io/turnierverwaltung/tennis_regeln_anfaenger_v2.pdf" class="header-help" target="_blank">Tennisregeln</a>
+        <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz buchen</a>
+    </div>
+
     <div class="controls">
         <div class="select-container">
             Bewerb: 
@@ -556,7 +579,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.6.2";
+const APP_VERSION = "1.6.4";
 const BUILD_DATE  = "2026-05-29";
 
 const firebaseConfig = {
