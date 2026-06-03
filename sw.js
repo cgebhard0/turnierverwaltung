@@ -1,6 +1,6 @@
 // SC Steindorf Turnierverwaltung – Service Worker
 // Version entspricht APP_VERSION in index.html
-const CACHE_NAME = 'sc-steindorf-v1.6.1';
+const CACHE_NAME = 'sc-steindorf-v1.6.2';
 
 // App-Shell: alles was für die Grundfunktion nötig ist
 const APP_SHELL = [

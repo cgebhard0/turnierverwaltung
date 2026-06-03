@@ -19,9 +19,14 @@
     <!-- Android / allgemein -->
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <!-- Verbindungen früh aufbauen (schnellerer Start, v.a. mobil) -->
+    <link rel="preconnect" href="https://steindorf-turnier-default-rtdb.europe-west1.firebasedatabase.app" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- jsPDF wird erst bei Bedarf (PDF-Export) nachgeladen – beschleunigt den Seitenstart -->
+
     <style>
         :root { 
             --primary: #16a085; 
@@ -551,7 +556,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.6.1";
+const APP_VERSION = "1.6.2";
 const BUILD_DATE  = "2026-05-29";
 
 const firebaseConfig = {
@@ -1403,6 +1408,15 @@ function wartungBeenden() {
     }).catch(err => alert('Fehler: ' + err.message));
 }
 
+// Konfiguration aus einem Datenobjekt in die globalen Variablen übernehmen
+function applyConfig(data) {
+    if (!data) return;
+    if (data.gruppenStruktur)   gruppenStruktur   = data.gruppenStruktur;
+    if (data.spielerListen)     spielerListen     = data.spielerListen;
+    if (data.turnierSpielplaene) turnierSpielplaene = data.turnierSpielplaene;
+    if (data.playerPins)        playerPins        = data.playerPins;
+}
+
 function initApp() {
     // Versionsanzeige im Admin-Bereich befüllen
     const av = document.getElementById('admin-version');
@@ -1412,6 +1426,20 @@ function initApp() {
 
     document.getElementById('spiele-liste').innerHTML = '<p style="text-align:center; padding: 20px;">Lade Turnier-Konfiguration...</p>';
 
+    // ── 1. Sofort-Anzeige aus zwischengespeicherter Konfiguration ──────────
+    // Zeigt beim erneuten Aufruf die zuletzt bekannte Konfiguration direkt an,
+    // während im Hintergrund die aktuelle Version geladen wird (v.a. mobil schneller).
+    let renderedFromCache = false;
+    try {
+        const cached = safeStorage.getItem('cachedConfig');
+        if (cached) {
+            applyConfig(JSON.parse(cached));
+            startAppLogic();
+            renderedFromCache = true;
+        }
+    } catch (e) { /* Cache ignorieren, falls beschädigt */ }
+
+    // ── 2. Frische Konfiguration aus Firebase laden ────────────────────────
     const configRef = database.ref('config');
     configRef.once('value').then((snapshot) => {
         const data = snapshot.val() || {};
@@ -1427,17 +1455,24 @@ function initApp() {
         }
 
         // Prüfen, ob einzelne Config-Teile fehlen und diese gegebenenfalls ergänzen
-        if (data.gruppenStruktur) { gruppenStruktur = data.gruppenStruktur; } 
+        if (data.gruppenStruktur) { gruppenStruktur = data.gruppenStruktur; }
         else { updates.gruppenStruktur = gruppenStruktur; updatesNeeded = true; }
 
-        if (data.spielerListen) { spielerListen = data.spielerListen; } 
+        if (data.spielerListen) { spielerListen = data.spielerListen; }
         else { updates.spielerListen = spielerListen; updatesNeeded = true; }
 
-        if (data.turnierSpielplaene) { turnierSpielplaene = data.turnierSpielplaene; } 
+        if (data.turnierSpielplaene) { turnierSpielplaene = data.turnierSpielplaene; }
         else { updates.turnierSpielplaene = turnierSpielplaene; updatesNeeded = true; }
 
-        if (data.playerPins) { playerPins = data.playerPins; } 
+        if (data.playerPins) { playerPins = data.playerPins; }
         else { updates.playerPins = playerPins; updatesNeeded = true; }
+
+        // Aktuelle Konfiguration für den nächsten Start zwischenspeichern
+        try {
+            safeStorage.setItem('cachedConfig', JSON.stringify({
+                gruppenStruktur, spielerListen, turnierSpielplaene, playerPins
+            }));
+        } catch (e) { /* Speichern optional */ }
 
         // Wenn Teile gefehlt haben, lade sie jetzt in die Datenbank hoch
         if (updatesNeeded) {
@@ -1449,8 +1484,11 @@ function initApp() {
             startAppLogic();
         }
     }).catch((error) => {
-        alert("Verbindungsfehler zur Datenbank: " + error.message);
-        startAppLogic();
+        // Bei Verbindungsfehler nur warnen, wenn nicht bereits aus dem Cache angezeigt
+        if (!renderedFromCache) {
+            alert("Verbindungsfehler zur Datenbank: " + error.message);
+            startAppLogic();
+        }
     });
 }
 
@@ -1766,6 +1804,18 @@ function svSpeichernInFirebase(callback) {
 }
 
 // ─── Ergebnisse PDF Export ───────────────────────────────────────────────────
+// jsPDF erst bei Bedarf nachladen (wird vom Service Worker gecacht → danach sofort verfügbar)
+function ensureJsPDF() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('jsPDF konnte nicht geladen werden'));
+        document.head.appendChild(s);
+    });
+}
+
 async function exportErgebnissePDF() {
     const btn = event.currentTarget;
     const origText = btn.textContent;
@@ -1773,6 +1823,9 @@ async function exportErgebnissePDF() {
     btn.disabled = true;
 
     try {
+        // PDF-Bibliothek bei Bedarf laden
+        await ensureJsPDF();
+
         // Fetch live results from Firebase
         const snapshot = await database.ref('turnier').once('value');
         const firebaseData = snapshot.val() || {};
