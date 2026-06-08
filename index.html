@@ -510,7 +510,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.6.4";
+const APP_VERSION = "1.6.5";
 const BUILD_DATE  = "2026-06-08";
 
 const firebaseConfig = {
@@ -899,7 +899,8 @@ function renderSpiele() {
     spiele.forEach(match => {
         if (match.runde !== aktuelleRunde) {
             aktuelleRunde = match.runde;
-            liste.innerHTML += `<div class="runde-header">${aktuelleRunde} <span class="runde-datum">(${match.datum})</span></div>`;
+            const datumAnzeige = (!match.datum || match.datum === 'TBA') ? 'bis 30.06.2026' : match.datum;
+            liste.innerHTML += `<div class="runde-header">${aktuelleRunde} <span class="runde-datum">(${datumAnzeige})</span></div>`;
         }
         
         const card = document.createElement('div');
