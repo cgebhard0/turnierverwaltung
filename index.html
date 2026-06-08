@@ -57,33 +57,6 @@
             to   { transform: translateY(0);    opacity: 1; }
         }
 
-        #update-banner {
-            display: none;
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            z-index: 9998;
-            background: #2c3e50;
-            color: white;
-            text-align: center;
-            font-size: 0.85rem;
-            padding: 10px 16px;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-        #update-banner.visible { display: flex; }
-        #update-banner button {
-            background: #16a085;
-            color: white;
-            border: none;
-            border-radius: 14px;
-            padding: 5px 14px;
-            font-size: 0.82rem;
-            font-weight: bold;
-            cursor: pointer;
-        }
         
         header { background-color: #a0522d; color: white; padding: 20px 10px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; }
         
@@ -378,11 +351,6 @@
 <body>
 
 <div id="offline-banner">⚠ Keine Internetverbindung – Änderungen werden nicht gespeichert</div>
-<div id="update-banner">
-    🔄 Neue Version verfügbar
-    <button onclick="doUpdate()">Jetzt aktualisieren</button>
-    <button onclick="document.getElementById('update-banner').classList.remove('visible')" style="background:transparent;border:1px solid rgba(255,255,255,0.3);font-weight:normal;">Später</button>
-</div>
 
 <header>
     <div class="header-title-row">
@@ -542,7 +510,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.6.1";
+const APP_VERSION = "1.6.3";
 const BUILD_DATE  = "2026-06-08";
 
 const firebaseConfig = {
@@ -2882,64 +2850,24 @@ function truncate(str, maxLen) {
     if (vEl) vEl.textContent = '· v' + APP_VERSION + ' (' + BUILD_DATE + ')';
 
     // ── Service Worker registrieren (PWA) ────────────────────────────────────
-    let swRegistration = null;
-
-    function showUpdateBanner() {
-        document.getElementById('update-banner').classList.add('visible');
-    }
-
-    function doUpdate() {
-        // Wartenden SW aktivieren, dann neu laden
-        if (swRegistration && swRegistration.waiting) {
-            swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-        // Sobald der neue SW die Kontrolle übernimmt, Seite neu laden
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            window.location.reload();
-        }, { once: true });
-        // Fallback: direkt neu laden falls kein waiting SW
-        setTimeout(() => window.location.reload(), 500);
-    }
-
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/turnierverwaltung/sw.js')
                 .then(reg => {
-                    swRegistration = reg;
                     console.log('[PWA] Service Worker registriert:', reg.scope);
 
-                    // Fall 1: Beim Laden bereits ein wartender SW vorhanden
-                    if (reg.waiting) {
-                        console.log('[PWA] Update wartet bereits.');
-                        showUpdateBanner();
-                    }
-
-                    // Fall 2: Neuer SW wird gefunden und installiert
-                    reg.addEventListener('updatefound', () => {
-                        const newWorker = reg.installing;
-                        if (!newWorker) return;
-                        newWorker.addEventListener('statechange', () => {
-                            // SW ist installiert und wartet auf Übernahme
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('[PWA] Neue Version verfügbar.');
-                                showUpdateBanner();
-                            }
-                        });
+                    // Wenn neuer SW die Kontrolle übernimmt → Seite automatisch neu laden
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        console.log('[PWA] Neue Version aktiv – Seite wird neu geladen.');
+                        window.location.reload();
                     });
 
-                    // Fall 3: Periodisch auf Updates prüfen (alle 30 Min)
+                    // Periodisch auf Updates prüfen (alle 30 Min)
                     setInterval(() => reg.update(), 30 * 60 * 1000);
 
-                    // Fall 4: Beim Zurückkehren in die App (Handy: App wieder öffnen)
+                    // Beim Zurückkehren in die App (Handy: App aus dem Hintergrund)
                     document.addEventListener('visibilitychange', () => {
                         if (document.visibilityState === 'visible') reg.update();
-                    });
-
-                    // Fallback: Nachricht vom SW (alter Mechanismus)
-                    navigator.serviceWorker.addEventListener('message', event => {
-                        if (event.data && event.data.type === 'SW_UPDATED') {
-                            showUpdateBanner();
-                        }
                     });
                 })
                 .catch(err => console.warn('[PWA] Service Worker Fehler:', err));
