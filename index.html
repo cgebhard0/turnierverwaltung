@@ -19,14 +19,9 @@
     <!-- Android / allgemein -->
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-    <!-- Verbindungen früh aufbauen (schnellerer Start, v.a. mobil) -->
-    <link rel="preconnect" href="https://steindorf-turnier-default-rtdb.europe-west1.firebasedatabase.app" crossorigin>
-    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <!-- jsPDF wird erst bei Bedarf (PDF-Export) nachgeladen – beschleunigt den Seitenstart -->
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root { 
             --primary: #16a085; 
@@ -104,10 +99,9 @@
             text-shadow: none;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
+            gap: 16px;
             border: 1px solid rgba(255, 255, 255, 0.35);
-            padding: 8px 22px;
+            padding: 8px 24px;
         }
         .title-sub {
             color: #ffffff;
@@ -118,90 +112,64 @@
             margin-top: 5px;
         }
 
-        /* Primäre Aktion – einziger voll gefüllter Türkis-Button */
-        .header-btn {
-            display: inline-flex;
-            align-items: center;
-            background-color: #16a085;
-            color: white;
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: bold;
-            padding: 8px 18px;
-            border-radius: 20px;
-            margin: 0;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .header-btn { 
+            display: inline-block; 
+            background-color: #16a085; 
+            color: white; 
+            text-decoration: none; 
+            font-size: 0.85rem; 
+            font-weight: bold; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
+            transition: all 0.2s ease; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
         }
         .header-title-row {
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 10px;
-            margin-bottom: 14px;
+            margin-bottom: 15px;
         }
         .header-title-row h1 {
             margin: 0;
         }
-        /* Werkzeugleiste: Hilfe-Links + primäre Aktion gruppiert */
-        .header-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        /* Sekundäre Links – einheitlicher „Glas"-Stil, abgestimmt auf die Auswahl-Zeile */
         .header-help {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.95);
-            font-size: 0.68rem;
+            display: inline-block;
+            color: rgba(255,255,255,0.55);
+            font-size: 0.65rem;
             font-family: Arial, Helvetica, sans-serif;
             letter-spacing: 1px;
             text-decoration: none;
             text-transform: uppercase;
-            font-weight: bold;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 20px;
-            padding: 7px 14px;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 4px;
+            padding: 5px 10px;
             white-space: nowrap;
             transition: all 0.2s;
+            align-self: stretch;
+            display: flex;
+            align-items: center;
         }
         .header-help:hover {
-            color: #fff;
-            border-color: rgba(255,255,255,0.6);
-            background: rgba(255,255,255,0.28);
+            color: rgba(255,255,255,0.9);
+            border-color: rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.08);
         }
         .header-btn:hover {
             background-color: #0e8a72;
             transform: translateY(-2px);
             box-shadow: 0 6px 8px rgba(0,0,0,0.3);
         }
-
-        /* Einstellungen – durch feine Linie von den Aktionen getrennt */
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            padding-top: 14px;
-            border-top: 1px solid rgba(255,255,255,0.18);
-            width: 100%;
-            max-width: 560px;
-        }
-
-        .select-container { background: rgba(255,255,255,0.15); padding: 6px 10px 6px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); font-size: 0.85rem; display: flex; align-items: center; transition: all 0.2s; cursor: pointer; }
-        .select-container:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6); }
+        
+        .controls { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+        
+        .select-container { background: rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; align-items: center; transition: background 0.2s; }
+        .select-container:hover { background: rgba(255,255,255,0.25); }
         .select-container select { background: transparent; color: white; border: none; font-weight: bold; font-size: 0.85rem; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; padding-left: 5px; }
         .select-container select option { color: black; background-color: white; }
-        /* ▾ signalisiert: auswählbar */
-        .select-container::after { content: "\25BE"; color: rgba(255,255,255,0.8); font-size: 0.7rem; margin-left: 2px; pointer-events: none; }
 
         .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
         
@@ -250,6 +218,8 @@
         .btn-edit:hover { background: #2980b9; }
         .btn-locked { background: #ecf0f1; color: #95a5a6; cursor: not-allowed; }
         .btn-locked:hover { background: #ecf0f1; }
+        .btn-reset { background: #e67e22; }
+        .btn-reset:hover { background: #d35400; }
         .btn-reset { background: #e74c3c; margin-top: 15px; }
         .btn-reset:hover { background: #c0392b; }
         
@@ -339,22 +309,20 @@
             h1 {
                 font-size: 1.1rem;
                 letter-spacing: 2px;
-                padding: 6px 14px;
-                gap: 8px;
-                margin-bottom: 8px;
+                padding: 7px 12px;
+                gap: 10px;
+                margin-bottom: 10px;
             }
             h1 svg { width: 48px; height: 31px; }
 
-            .header-toolbar { gap: 8px; margin-bottom: 12px; }
-            .header-help { font-size: 0.62rem; padding: 6px 12px; }
             .header-btn {
                 font-size: 0.75rem;
-                padding: 7px 14px;
-                margin: 0;
+                padding: 6px 14px;
+                margin-bottom: 12px;
             }
 
             /* Dropdowns */
-            .controls { gap: 6px; padding-top: 12px; }
+            .controls { gap: 6px; }
             .select-container { font-size: 0.8rem; padding: 5px 8px; }
             .select-container select { font-size: 0.8rem; }
 
@@ -428,14 +396,10 @@
             </svg>
             <span>Turnierverwaltung</span>
         </h1>
-    </div>
-
-    <div class="header-toolbar">
         <a href="https://cgebhard0.github.io/turnierverwaltung/Spieler_Anleitung.pdf" class="header-help" target="_blank">Anleitung</a>
-        <a href="https://cgebhard0.github.io/turnierverwaltung/tennis_regeln_anfaenger_v2.pdf" class="header-help" target="_blank">Tennisregeln</a>
-        <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz buchen</a>
     </div>
-
+    <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz buchen</a>
+    
     <div class="controls">
         <div class="select-container">
             Bewerb: 
@@ -465,7 +429,6 @@
     <!-- Ergebnis-PDF Export Button (für alle User sichtbar) -->
     <div style="text-align:right; margin: 6px 0 4px 0;">
         <button id="ergebnis-export-btn" onclick="exportErgebnissePDF()" style="background:linear-gradient(135deg,#1abc9c,#16a085); border:2px solid #0e6655; color:#fff; font-size:0.82rem; padding:7px 18px; border-radius:20px; cursor:pointer; font-weight:bold; box-shadow:0 3px 10px rgba(22,160,133,0.45); letter-spacing:0.3px; transition:all 0.2s;" onmouseover="this.style.boxShadow='0 5px 16px rgba(22,160,133,0.65)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 3px 10px rgba(22,160,133,0.45)';this.style.transform='translateY(0)'">📄 Ergebnisse exportieren</button>
-        <a id="ergebnis-open-link" target="_blank" rel="noopener" style="display:none; margin-left:8px; background:linear-gradient(135deg,#3498db,#2980b9); border:2px solid #1f5f8b; color:#fff; font-size:0.82rem; padding:7px 18px; border-radius:20px; cursor:pointer; font-weight:bold; text-decoration:none; box-shadow:0 3px 10px rgba(41,128,185,0.45); letter-spacing:0.3px; transition:all 0.2s;" onmouseover="this.style.boxShadow='0 5px 16px rgba(41,128,185,0.65)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='0 3px 10px rgba(41,128,185,0.45)';this.style.transform='translateY(0)'">📂 Datei öffnen</a>
     </div>
 
     <div class="progress-container">
@@ -579,7 +542,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.6.4";
+const APP_VERSION = "1.6.0";
 const BUILD_DATE  = "2026-05-29";
 
 const firebaseConfig = {
@@ -1007,9 +970,16 @@ function renderSpiele() {
             
 ergebnisHTML = '<div class="ergebnis-text"><strong>' + match.spieler.map(s => `${s}: ${match.ergebnisse[s]}${unit}`).join(trenner) + '</strong>' + detailString + '</div>';
             
-            actionButton = hasPermission ? 
-                `<button class="btn btn-edit" onclick="openModal('${match.id}')">Bearbeiten</button>` : 
-                `<button class="btn btn-locked" onclick="alert('Nur der Admin oder die beteiligten Spieler dürfen dieses Ergebnis bearbeiten.')">Gesperrt 🔒</button>`;
+            if (isAdminLoggedIn) {
+                actionButton = `<div style="display:flex;gap:8px;flex-wrap:wrap;">` +
+                    `<button class="btn btn-edit" onclick="openModal('${match.id}')">Bearbeiten (Admin)</button>` +
+                    `<button class="btn btn-reset" onclick="resetMatch('${match.id}')">Zurücksetzen</button>` +
+                    `</div>`;
+            } else {
+                actionButton = hasPermission ?
+                    `<button class="btn btn-edit" onclick="openModal('${match.id}')">Bearbeiten</button>` :
+                    `<button class="btn btn-locked" onclick="alert('Nur der Admin oder die beteiligten Spieler dürfen dieses Ergebnis bearbeiten.')">Gesperrt 🔒</button>`;
+            }
         } else {
             actionButton = hasPermission ? 
                 `<button class="btn" onclick="openModal('${match.id}')">Eintragen</button>` : 
@@ -1094,6 +1064,31 @@ function saveScore() {
         currentDbRef.set(spiele);
     }
     closeModal();
+}
+
+function resetMatch(id) {
+    if (!isAdminLoggedIn) {
+        alert('Nur der Admin kann ein Ergebnis zurücksetzen.');
+        return;
+    }
+    const match = spiele.find(s => s.id === id);
+    if (!match) return;
+
+    const namen = match.spieler ? match.spieler.join(' / ') : id;
+    if (!confirm(`Ergebnis von "${namen}" wirklich zurücksetzen?\nDas Spiel wird wieder auf "Offen" gesetzt.`)) return;
+
+    delete match.gespielt;
+    delete match.ergebnisse;
+    delete match.detailErgebnis;
+    delete match.eingetragenVon;
+    delete match.eingetragenAm;
+
+    if (currentDbRef) {
+        currentDbRef.set(spiele).then(() => {
+            renderSpiele();
+            berechneRangliste();
+        });
+    }
 }
 
 function berechneRangliste() {
@@ -1431,15 +1426,6 @@ function wartungBeenden() {
     }).catch(err => alert('Fehler: ' + err.message));
 }
 
-// Konfiguration aus einem Datenobjekt in die globalen Variablen übernehmen
-function applyConfig(data) {
-    if (!data) return;
-    if (data.gruppenStruktur)   gruppenStruktur   = data.gruppenStruktur;
-    if (data.spielerListen)     spielerListen     = data.spielerListen;
-    if (data.turnierSpielplaene) turnierSpielplaene = data.turnierSpielplaene;
-    if (data.playerPins)        playerPins        = data.playerPins;
-}
-
 function initApp() {
     // Versionsanzeige im Admin-Bereich befüllen
     const av = document.getElementById('admin-version');
@@ -1449,20 +1435,6 @@ function initApp() {
 
     document.getElementById('spiele-liste').innerHTML = '<p style="text-align:center; padding: 20px;">Lade Turnier-Konfiguration...</p>';
 
-    // ── 1. Sofort-Anzeige aus zwischengespeicherter Konfiguration ──────────
-    // Zeigt beim erneuten Aufruf die zuletzt bekannte Konfiguration direkt an,
-    // während im Hintergrund die aktuelle Version geladen wird (v.a. mobil schneller).
-    let renderedFromCache = false;
-    try {
-        const cached = safeStorage.getItem('cachedConfig');
-        if (cached) {
-            applyConfig(JSON.parse(cached));
-            startAppLogic();
-            renderedFromCache = true;
-        }
-    } catch (e) { /* Cache ignorieren, falls beschädigt */ }
-
-    // ── 2. Frische Konfiguration aus Firebase laden ────────────────────────
     const configRef = database.ref('config');
     configRef.once('value').then((snapshot) => {
         const data = snapshot.val() || {};
@@ -1478,24 +1450,17 @@ function initApp() {
         }
 
         // Prüfen, ob einzelne Config-Teile fehlen und diese gegebenenfalls ergänzen
-        if (data.gruppenStruktur) { gruppenStruktur = data.gruppenStruktur; }
+        if (data.gruppenStruktur) { gruppenStruktur = data.gruppenStruktur; } 
         else { updates.gruppenStruktur = gruppenStruktur; updatesNeeded = true; }
 
-        if (data.spielerListen) { spielerListen = data.spielerListen; }
+        if (data.spielerListen) { spielerListen = data.spielerListen; } 
         else { updates.spielerListen = spielerListen; updatesNeeded = true; }
 
-        if (data.turnierSpielplaene) { turnierSpielplaene = data.turnierSpielplaene; }
+        if (data.turnierSpielplaene) { turnierSpielplaene = data.turnierSpielplaene; } 
         else { updates.turnierSpielplaene = turnierSpielplaene; updatesNeeded = true; }
 
-        if (data.playerPins) { playerPins = data.playerPins; }
+        if (data.playerPins) { playerPins = data.playerPins; } 
         else { updates.playerPins = playerPins; updatesNeeded = true; }
-
-        // Aktuelle Konfiguration für den nächsten Start zwischenspeichern
-        try {
-            safeStorage.setItem('cachedConfig', JSON.stringify({
-                gruppenStruktur, spielerListen, turnierSpielplaene, playerPins
-            }));
-        } catch (e) { /* Speichern optional */ }
 
         // Wenn Teile gefehlt haben, lade sie jetzt in die Datenbank hoch
         if (updatesNeeded) {
@@ -1507,11 +1472,8 @@ function initApp() {
             startAppLogic();
         }
     }).catch((error) => {
-        // Bei Verbindungsfehler nur warnen, wenn nicht bereits aus dem Cache angezeigt
-        if (!renderedFromCache) {
-            alert("Verbindungsfehler zur Datenbank: " + error.message);
-            startAppLogic();
-        }
+        alert("Verbindungsfehler zur Datenbank: " + error.message);
+        startAppLogic();
     });
 }
 
@@ -1827,18 +1789,6 @@ function svSpeichernInFirebase(callback) {
 }
 
 // ─── Ergebnisse PDF Export ───────────────────────────────────────────────────
-// jsPDF erst bei Bedarf nachladen (wird vom Service Worker gecacht → danach sofort verfügbar)
-function ensureJsPDF() {
-    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('jsPDF konnte nicht geladen werden'));
-        document.head.appendChild(s);
-    });
-}
-
 async function exportErgebnissePDF() {
     const btn = event.currentTarget;
     const origText = btn.textContent;
@@ -1846,9 +1796,6 @@ async function exportErgebnissePDF() {
     btn.disabled = true;
 
     try {
-        // PDF-Bibliothek bei Bedarf laden
-        await ensureJsPDF();
-
         // Fetch live results from Firebase
         const snapshot = await database.ref('turnier').once('value');
         const firebaseData = snapshot.val() || {};
@@ -2823,18 +2770,7 @@ async function exportErgebnissePDF() {
 
         // Generate date string for filename
         const ds = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-        const fileName = 'SC_Steindorf_Ergebnisse_' + ds + '.pdf';
-        doc.save(fileName);
-
-        // "Datei öffnen"-Button einblenden (öffnet das erzeugte PDF in neuem Tab)
-        const openLink = document.getElementById('ergebnis-open-link');
-        if (openLink) {
-            if (openLink.dataset.blobUrl) { URL.revokeObjectURL(openLink.dataset.blobUrl); }
-            const blobUrl = doc.output('bloburl');
-            openLink.href = blobUrl;
-            openLink.dataset.blobUrl = blobUrl;
-            openLink.style.display = 'inline-block';
-        }
+        doc.save('SC_Steindorf_Ergebnisse_' + ds + '.pdf');
 
         btn.textContent = '✅ PDF erstellt!';
         setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2500);
