@@ -52,6 +52,26 @@
             animation: slideDown 0.3s ease;
         }
         #offline-banner.visible { display: block; }
+        #update-banner {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 9999;
+            background: #16a085;
+            color: white;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding: 10px 16px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+        #update-banner.visible { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
+        #update-banner button {
+            background: #fff; color: #16a085; border: none; border-radius: 14px;
+            padding: 6px 16px; font-weight: bold; font-size: 0.8rem; cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
         @keyframes slideDown {
             from { transform: translateY(-100%); opacity: 0; }
             to   { transform: translateY(0);    opacity: 1; }
@@ -369,6 +389,7 @@
 <body>
 
 <div id="offline-banner">⚠ Keine Internetverbindung – Änderungen werden nicht gespeichert</div>
+<div id="update-banner"><span id="update-banner-text">🔄 Neue Version verfügbar</span> <button type="button" onclick="jetztAktualisieren()">Jetzt aktualisieren</button></div>
 
 <header>
     <div class="header-title-row">
@@ -531,7 +552,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.7.2";
+const APP_VERSION = "1.7.3";
 const BUILD_DATE  = "2026-06-30";
 
 const firebaseConfig = {
@@ -3037,9 +3058,10 @@ function truncate(str, maxLen) {
     // ── Service Worker registrieren (PWA) ────────────────────────────────────
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/turnierverwaltung/sw.js')
+            navigator.serviceWorker.register('/turnierverwaltung/sw.js', { updateViaCache: 'none' })
                 .then(reg => {
                     console.log('[PWA] Service Worker registriert:', reg.scope);
+                    reg.update();   // sofort auf eine neuere sw.js prüfen (HTTP-Cache umgangen)
 
                     // Wenn neuer SW die Kontrolle übernimmt → Seite automatisch neu laden
                     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -3058,6 +3080,42 @@ function truncate(str, maxLen) {
                 .catch(err => console.warn('[PWA] Service Worker Fehler:', err));
         });
     }
+
+    // ── Versions-Auto-Check (unabhängig vom Service Worker) ──────────────────
+    // Vergleicht die laufende APP_VERSION mit der Version der index.html auf dem
+    // Server. Bei Abweichung erscheint der Aktualisieren-Banner. Greift auch dann,
+    // wenn der Service-Worker kein Update erkennt (sw.js unverändert).
+    let updateBannerGezeigt = false;
+    async function pruefeAufNeueVersion() {
+        if (updateBannerGezeigt || !navigator.onLine) return;
+        try {
+            const resp = await fetch('index.html?cb=' + Date.now(), { cache: 'no-store' });
+            if (!resp.ok) return;
+            const text = await resp.text();
+            const m = text.match(/APP_VERSION\s*=\s*["']([^"']+)["']/);
+            const serverVersion = m && m[1];
+            if (serverVersion && serverVersion !== APP_VERSION) {
+                document.getElementById('update-banner-text').textContent = '🔄 Neue Version ' + serverVersion + ' verfügbar';
+                document.getElementById('update-banner').classList.add('visible');
+                updateBannerGezeigt = true;
+            }
+        } catch (e) { /* offline / Netzwerkfehler – stillschweigend ignorieren */ }
+    }
+
+    function jetztAktualisieren() {
+        const neuLaden = () => location.reload();
+        // Caches leeren, damit garantiert die frische Version geladen wird
+        if ('caches' in window) {
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(neuLaden).catch(neuLaden);
+        } else {
+            neuLaden();
+        }
+    }
+
+    // Auslöser: kurz nach Start, bei Rückkehr in die App (Fokus) und periodisch
+    setTimeout(pruefeAufNeueVersion, 4000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pruefeAufNeueVersion(); });
+    setInterval(pruefeAufNeueVersion, 15 * 60 * 1000);
 </script>
 </body>
 </html>
