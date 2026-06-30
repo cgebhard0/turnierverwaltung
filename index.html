@@ -97,8 +97,15 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
             transition: all 0.2s ease; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .header-btn-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         .header-title-row {
             display: flex;
@@ -377,8 +384,11 @@
         </h1>
         <a href="https://cgebhard0.github.io/turnierverwaltung/Spieler_Anleitung.pdf" class="header-help" target="_blank">Anleitung</a>
     </div>
-    <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz buchen</a>
-    
+    <div class="header-btn-row">
+        <a href="https://tennis-steindorf.at" class="header-btn" target="_blank">📅 Tennisplatz buchen</a>
+        <a href="https://cgebhard0.github.io/turnierverwaltung/tennis_regeln_anfaenger_v2.pdf" class="header-btn" target="_blank">📖 Tennisregeln</a>
+    </div>
+
     <div class="controls">
         <div class="select-container">
             Bewerb: 
@@ -521,7 +531,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.7.1";
+const APP_VERSION = "1.7.2";
 const BUILD_DATE  = "2026-06-30";
 
 const firebaseConfig = {
@@ -1069,7 +1079,7 @@ function saveScore() {
         }
         if (!rows[0] || !rows[1]) { alert("Bitte Satz 1 und Satz 2 eintragen (Best of 3)."); return; }
 
-        // Satzstand nach zwei Sätzen → 3. Satz nur bei 1:1 (Match-Tiebreak)
+        // Satzstand nach zwei Sätzen → 3. Satz (voll) nur bei 1:1
         let sw1 = 0, sw2 = 0;
         [rows[0], rows[1]].forEach(([a, b]) => { if (a > b) sw1++; else sw2++; });
         if (sw1 === 2 || sw2 === 2) {
