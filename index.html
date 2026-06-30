@@ -269,6 +269,16 @@
         .detail-input-group input { padding: 10px; border: 2px solid #bdc3c7; border-radius: 6px; font-size: 1rem; color: var(--secondary); font-family: monospace; }
         .detail-input-group input:focus { border-color: var(--primary); outline: none; }
 
+        /* Einzel: Spielstand je Satz (Games) */
+        .set-players { display: grid; grid-template-columns: 64px 1fr 14px 1fr; gap: 8px; align-items: center; margin-bottom: 6px; padding: 0 12px; font-size: 0.8rem; font-weight: bold; color: #7f8c8d; text-align: center; }
+        .set-row { display: grid; grid-template-columns: 64px 1fr 14px 1fr; gap: 8px; align-items: center; margin-bottom: 10px; background: #f8f9fa; padding: 8px 12px; border-radius: 8px; border: 1px solid #eef0f2; }
+        .set-row .set-label { font-weight: bold; color: var(--secondary); font-size: 0.9rem; }
+        .set-row .set-colon { font-weight: bold; color: #bdc3c7; text-align: center; }
+        .set-row input { width: 100%; padding: 8px 4px; border: 2px solid #bdc3c7; border-radius: 6px; text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--secondary); -webkit-appearance: none; transition: border-color 0.2s; }
+        .set-row input:focus { border-color: var(--primary); outline: none; }
+        .set-row.set-tb { background: #fef5ec; border-color: #f0b27a; }
+        .set-row.set-tb .set-label { color: #e67e22; }
+
         .modal-buttons { display: flex; gap: 10px; margin-top: 25px; }
         .btn-cancel { background: #95a5a6; }
         .btn-cancel:hover { background: #7f8c8d; }
@@ -336,6 +346,9 @@
             .modal-content { padding: 18px 14px; border-radius: 10px; }
             .input-group { padding: 9px 12px; }
             .input-group input { width: 64px; padding: 6px; }
+            .set-players { grid-template-columns: 54px 1fr 12px 1fr; gap: 6px; padding: 0 10px; }
+            .set-row { grid-template-columns: 54px 1fr 12px 1fr; gap: 6px; padding: 7px 10px; }
+            .set-row input { font-size: 1.05rem; padding: 6px 2px; }
             .modal-buttons { gap: 8px; }
 
             /* Spielerverwaltung Modal */
@@ -483,7 +496,7 @@
         <h3 style="margin: 25px 0 10px 0; color: var(--secondary); border-left: 4px solid #3498db; padding-left: 8px;">Einzel (Alle Gruppen)</h3>
         <table class="ranking-table">
             <thead>
-                <tr><th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Siege</th><th style="text-align: right;">Sätze</th></tr>
+                <tr><th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Siege</th><th style="text-align: right;">Sätze</th><th style="text-align: right;">Games</th></tr>
             </thead>
             <tbody id="gesamt-einzel-body"></tbody>
         </table>
@@ -510,8 +523,8 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.6.5";
-const BUILD_DATE  = "2026-06-08";
+const APP_VERSION = "1.7.0";
+const BUILD_DATE  = "2026-06-30";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDpI-0rnr8Z-DW9jW3ebfuXjSPKksb81mc",
@@ -931,7 +944,19 @@ function renderSpiele() {
             const unit = actBewerb === 'Doppel' ? ' Games' : ' Sätze';
 	    const trenner = actBewerb === 'Doppel' ? ' | ' : ' <br> ';
             
-            let detailString = match.detailErgebnis ? `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.9rem; font-weight: normal; color: #2c3e50;">Sätze: <strong>${match.detailErgebnis}</strong></div>` : '';
+            let detailString = '';
+            if (match.detailErgebnis) {
+                let gamesStr = '';
+                if (actBewerb === 'Einzel') {
+                    const st = einzelStatsFromMatch(match);
+                    if (st.gamesBekannt) {
+                        gamesStr = ` &middot; Games: <strong>${st.games[match.spieler[0]]}:${st.games[match.spieler[1]]}</strong>`;
+                    }
+                }
+                detailString = `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.9rem; font-weight: normal; color: #2c3e50;">Sätze: <strong>${match.detailErgebnis}</strong>${gamesStr}</div>`;
+            } else if (actBewerb === 'Einzel') {
+                detailString = `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.85rem; font-weight: bold; color: #e67e22;">&#9888; Spielstand nachzutragen</div>`;
+            }
             
             if (match.eingetragenVon && match.eingetragenAm) {
                 const datumFormatiert = new Date(match.eingetragenAm).toLocaleString('de-AT', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
@@ -967,31 +992,51 @@ function openModal(id) {
     
     document.getElementById('matchId').value = id;
     const isEinzel = actBewerb === 'Einzel';
-    
-    document.getElementById('modalTitle').innerText = isEinzel ? "Ergebnis eintragen" : "Games eintragen";
-    document.getElementById('modalHint').innerText = isEinzel ? "Gib die Gewinnsätze für das Ranking ein (0, 1 oder 2) und optional unten die genauen Sätze." : "Gib die gesammelten Games für das Ranking ein.";
-    
+
     const inputsContainer = document.getElementById('modalInputs');
     inputsContainer.innerHTML = '';
-    
-    match.spieler.forEach((spieler, idx) => {
-        const alterWert = (match.ergebnisse && match.ergebnisse[spieler] !== undefined) ? match.ergebnisse[spieler] : '';
-        const maxAttr = isEinzel ? 'max="2"' : '';
-        inputsContainer.innerHTML += `
-            <div class="input-group">
-                <label>${spieler}</label>
-                <input type="number" id="playerScore_${idx}" min="0" ${maxAttr} inputmode="numeric" pattern="[0-9]*" value="${alterWert}">
+
+    if (isEinzel) {
+        document.getElementById('modalTitle').innerText = "Spielstand eintragen";
+        document.getElementById('modalHint').innerText = "Games je Satz eintragen (z. B. 6 : 4). Bei Satzgleichstand 1:1 den 3. Satz als Match-Tiebreak (z. B. 10 : 8).";
+
+        const p1 = match.spieler[0], p2 = match.spieler[1];
+        const sets = getSaetze(match) || [];
+        const val = (i, j) => (sets[i] && sets[i][j] !== undefined) ? sets[i][j] : '';
+
+        let html = `<div class="set-players"><span></span><span>${p1}</span><span></span><span>${p2}</span></div>`;
+        for (let i = 0; i < 3; i++) {
+            const label = i < 2 ? ('Satz ' + (i + 1)) : 'Match-TB';
+            html += `<div class="set-row${i === 2 ? ' set-tb' : ''}">
+                <span class="set-label">${label}</span>
+                <input type="number" min="0" inputmode="numeric" pattern="[0-9]*" id="set_${i}_0" value="${val(i, 0)}">
+                <span class="set-colon">:</span>
+                <input type="number" min="0" inputmode="numeric" pattern="[0-9]*" id="set_${i}_1" value="${val(i, 1)}">
             </div>`;
-    });
-    
-    const alterDetailWert = match.detailErgebnis || '';
-    inputsContainer.innerHTML += `
-        <div class="detail-input-group">
-            <label>Ergebnis im Detail (z. B. 6:4, 4:6, 10:8)</label>
-            <input type="text" id="detailScore" placeholder="Optional..." value="${alterDetailWert}">
-        </div>
-    `;
-    
+        }
+        inputsContainer.innerHTML = html;
+    } else {
+        document.getElementById('modalTitle').innerText = "Games eintragen";
+        document.getElementById('modalHint').innerText = "Gib die gesammelten Games für das Ranking ein.";
+
+        match.spieler.forEach((spieler, idx) => {
+            const alterWert = (match.ergebnisse && match.ergebnisse[spieler] !== undefined) ? match.ergebnisse[spieler] : '';
+            inputsContainer.innerHTML += `
+                <div class="input-group">
+                    <label>${spieler}</label>
+                    <input type="number" id="playerScore_${idx}" min="0" inputmode="numeric" pattern="[0-9]*" value="${alterWert}">
+                </div>`;
+        });
+
+        const alterDetailWert = match.detailErgebnis || '';
+        inputsContainer.innerHTML += `
+            <div class="detail-input-group">
+                <label>Ergebnis im Detail (z. B. 6:4, 4:6, 10:8)</label>
+                <input type="text" id="detailScore" placeholder="Optional..." value="${alterDetailWert}">
+            </div>
+        `;
+    }
+
     document.getElementById('scoreModal').style.display = 'flex';
 }
 
@@ -1009,22 +1054,52 @@ function saveScore() {
         return;
     }
 
-    let neueErgebnisse = {};
-    match.spieler.forEach((spieler, idx) => {
-        const val = parseInt(document.getElementById(`playerScore_${idx}`).value);
-        neueErgebnisse[spieler] = isNaN(val) ? 0 : val;
-    });
-
     if (actBewerb === 'Einzel') {
-        const v1 = neueErgebnisse[match.spieler[0]];
-        const v2 = neueErgebnisse[match.spieler[1]];
-        if (v1 !== 2 && v2 !== 2) { alert("Fehler: Ein Spieler muss exakt 2 Gewinnsätze haben!"); return; }
-        if (v1 === 2 && v2 === 2) { alert("Fehler: Es können nicht beide Spieler 2 Sätze gewinnen!"); return; }
+        const p1 = match.spieler[0], p2 = match.spieler[1];
+
+        // Satz-Eingaben lesen (Best of 3)
+        const rows = [];
+        for (let i = 0; i < 3; i++) {
+            const av = document.getElementById(`set_${i}_0`).value.trim();
+            const bv = document.getElementById(`set_${i}_1`).value.trim();
+            if (av === '' && bv === '') { rows.push(null); continue; }
+            if (av === '' || bv === '') { alert(`Satz ${i + 1}: bitte beide Spielstände eintragen.`); return; }
+            const a = parseInt(av, 10), b = parseInt(bv, 10);
+            if (isNaN(a) || isNaN(b) || a < 0 || b < 0) { alert(`Satz ${i + 1}: ungültiger Spielstand.`); return; }
+            if (a === b) { alert(`Satz ${i + 1}: ${a}:${b} – ein Satz braucht einen Sieger.`); return; }
+            rows.push([a, b]);
+        }
+        if (!rows[0] || !rows[1]) { alert("Bitte Satz 1 und Satz 2 eintragen (Best of 3)."); return; }
+
+        // Satzstand nach zwei Sätzen → 3. Satz nur bei 1:1 (Match-Tiebreak)
+        let sw1 = 0, sw2 = 0;
+        [rows[0], rows[1]].forEach(([a, b]) => { if (a > b) sw1++; else sw2++; });
+        if (sw1 === 2 || sw2 === 2) {
+            if (rows[2]) { alert("Bei 2:0 nach zwei Sätzen darf kein 3. Satz (Match-Tiebreak) eingetragen werden."); return; }
+        } else {
+            if (!rows[2]) { alert("Satzstand 1:1 – bitte den 3. Satz (Match-Tiebreak) eintragen."); return; }
+            const [a, b] = rows[2]; if (a > b) sw1++; else sw2++;
+        }
+
+        const sets = rows.filter(r => r);
+        const unplausibel = sets.some((paar, i) => !istStandardSatz(paar[0], paar[1], i === 2));
+        if (unplausibel && !confirm("Mindestens ein Satz wirkt ungewöhnlich (kein Standard-Ergebnis). Trotzdem speichern?")) return;
+
+        // Ableiten: Gewinnsätze, Sieger, Detail-String – Games werden zur Laufzeit berechnet
+        match.saetze = sets;
+        match.ergebnisse = { [p1]: sw1, [p2]: sw2 };
+        match.detailErgebnis = sets.map(([a, b]) => `${a}:${b}`).join(', ');
+    } else {
+        let neueErgebnisse = {};
+        match.spieler.forEach((spieler, idx) => {
+            const val = parseInt(document.getElementById(`playerScore_${idx}`).value);
+            neueErgebnisse[spieler] = isNaN(val) ? 0 : val;
+        });
+        match.ergebnisse = neueErgebnisse;
+        match.detailErgebnis = document.getElementById('detailScore').value.trim();
+        if (match.saetze) delete match.saetze;
     }
 
-    match.ergebnisse = neueErgebnisse;
-    match.detailErgebnis = document.getElementById('detailScore').value.trim();
-    
     match.eingetragenVon = currentUser;
     match.eingetragenAm = new Date().toISOString(); 
     
@@ -1050,6 +1125,7 @@ function resetMatch(id) {
     delete match.gespielt;
     delete match.ergebnisse;
     delete match.detailErgebnis;
+    delete match.saetze;
     delete match.eingetragenVon;
     delete match.eingetragenAm;
 
@@ -1061,10 +1137,91 @@ function resetMatch(id) {
     }
 }
 
+// -------------------------------------------------------------------------
+// EINZEL-WERTUNG (gemeinsam für App-Rangliste + PDF)
+// Reihenfolge: Siege → Sätze → Games   |   3. Satz = Match-Tiebreak = 1 Game (Variante A)
+// -------------------------------------------------------------------------
+
+// Parst "6:4, 4:6, 10:8" → [[6,4],[4,6],[10,8]] (Fallback für Altdaten ohne match.saetze)
+function parseDetailErgebnis(str) {
+    if (!str) return null;
+    const pairs = [];
+    const re = /(\d+)\s*[:\-\/]\s*(\d+)/g;
+    let m;
+    while ((m = re.exec(String(str))) !== null) {
+        pairs.push([parseInt(m[1], 10), parseInt(m[2], 10)]);
+    }
+    return pairs.length ? pairs : null;
+}
+
+// Strukturierte Sätze eines Spiels: neu match.saetze, sonst aus detailErgebnis geparst
+function getSaetze(match) {
+    if (match && Array.isArray(match.saetze) && match.saetze.length) return match.saetze;
+    return parseDetailErgebnis(match && match.detailErgebnis);
+}
+
+// Plausibilitätsprüfung eines Satzes (nur für Eingabe-Warnung, nicht blockierend)
+function istStandardSatz(a, b, istMatchTB) {
+    const hi = Math.max(a, b), lo = Math.min(a, b);
+    if (istMatchTB) return hi >= 10 && (hi - lo) >= 2;   // Champions-Tiebreak (bis 10, 2 Punkte Vorsprung)
+    if (hi === 6) return lo <= 4;                         // 6:0 … 6:4
+    if (hi === 7) return lo === 5 || lo === 6;            // 7:5, 7:6
+    return false;
+}
+
+// Einzel-Statistik eines gespielten Spiels.
+// → { satzWins:{name:n}, games:{name:n}, winner, gamesBekannt }
+// gamesBekannt=false: kein/ungültiger Spielstand → Sätze/Sieger aus ergebnisse, Games = 0 (unbekannt)
+function einzelStatsFromMatch(match) {
+    const p1 = match && match.spieler && match.spieler[0];
+    const p2 = match && match.spieler && match.spieler[1];
+    const out = { satzWins: {}, games: {}, winner: null, gamesBekannt: false };
+    if (!p1 || !p2) return out;
+    out.satzWins[p1] = 0; out.satzWins[p2] = 0;
+    out.games[p1] = 0;    out.games[p2] = 0;
+
+    const sets = getSaetze(match);
+    if (sets && sets.length >= 2 && sets.length <= 3) {
+        let sw1 = 0, sw2 = 0, ok = true;
+        sets.forEach((paar, idx) => {
+            const a = paar[0], b = paar[1];
+            if (a === b) { ok = false; return; }
+            if (idx === 2) {                       // 3. Satz = Match-Tiebreak → 1 Game an Sieger
+                if (a > b) { sw1++; out.games[p1] += 1; } else { sw2++; out.games[p2] += 1; }
+            } else {                                // normale Sätze → Games voll
+                out.games[p1] += a; out.games[p2] += b;
+                if (a > b) sw1++; else sw2++;
+            }
+        });
+        if (ok && Math.max(sw1, sw2) === 2 && Math.min(sw1, sw2) <= 1) {
+            out.satzWins[p1] = sw1; out.satzWins[p2] = sw2;
+            out.winner = sw1 > sw2 ? p1 : p2;
+            out.gamesBekannt = true;
+            return out;
+        }
+    }
+
+    // Fallback: bekannte Gewinnsätze nutzen, Games unbekannt
+    const erg = match.ergebnisse || {};
+    const e1 = erg[p1] || 0, e2 = erg[p2] || 0;
+    out.satzWins[p1] = e1; out.satzWins[p2] = e2;
+    out.games[p1] = 0;     out.games[p2] = 0;
+    out.winner = e1 > e2 ? p1 : (e2 > e1 ? p2 : null);
+    out.gamesBekannt = false;
+    return out;
+}
+
+// Sortier-Vergleich Einzel: Siege → Sätze → Games (absteigend)
+function cmpEinzel(a, b) {
+    if (b.siege  !== a.siege)  return b.siege  - a.siege;
+    if (b.saetze !== a.saetze) return b.saetze - a.saetze;
+    return (b.games || 0) - (a.games || 0);
+}
+
 function berechneRangliste() {
     const header = document.getElementById('ranking-header');
     if (actBewerb === 'Einzel') {
-        header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Siege</th><th style="text-align: right;">Sätze</th>`;
+        header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Siege</th><th style="text-align: right;">Sätze</th><th style="text-align: right;">Games</th>`;
     } else {
         header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Games</th>`;
     }
@@ -1091,20 +1248,25 @@ function berechneRangliste() {
     } else {
         // Einzel: Spielerliste der Gruppe als Basis
         (spielerListen[actBewerb][actGroup] || []).filter(s => s !== "Gast" && s !== "Mister X")
-            .forEach(s => { stats[s] = { games: 0, siege: 0, saetze: 0 }; });
+            .forEach(s => { stats[s] = { games: 0, siege: 0, saetze: 0, gamesIncomplete: false }; });
         spiele.forEach(match => {
             if (match.gespielt && !match.cancelled) {
-                const p1 = match.spieler[0]; const p2 = match.spieler[1];
-                const s1 = match.ergebnisse[p1] || 0; const s2 = match.ergebnisse[p2] || 0;
-                if (stats[p1]) { stats[p1].saetze += s1; if (s1 > s2) stats[p1].siege += 1; }
-                if (stats[p2]) { stats[p2].saetze += s2; if (s2 > s1) stats[p2].siege += 1; }
+                const st = einzelStatsFromMatch(match);
+                [match.spieler[0], match.spieler[1]].forEach(p => {
+                    if (stats[p]) {
+                        stats[p].saetze += st.satzWins[p];
+                        stats[p].games  += st.games[p];
+                        if (st.winner === p) stats[p].siege += 1;
+                        if (!st.gamesBekannt) stats[p].gamesIncomplete = true;
+                    }
+                });
             }
         });
     }
-    
+
     let sortiert = Object.keys(stats).map(key => ({ name: key, ...stats[key] }));
     if (actBewerb === 'Einzel') {
-        sortiert.sort((a, b) => (b.siege !== a.siege) ? (b.siege - a.siege) : (b.saetze - a.saetze));
+        sortiert.sort(cmpEinzel);
     } else {
         sortiert.sort((a, b) => b.games - a.games);
     }
@@ -1118,16 +1280,21 @@ function berechneRangliste() {
         if(index === 2) platzText = '3🥉';
         
         if (actBewerb === 'Einzel') {
-            tbody.innerHTML += `<tr><td>${platzText}</td><td><strong>${spieler.name}</strong></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.siege}</td><td style="text-align: right;">${spieler.saetze}</td></tr>`;
+            const gamesTxt = spieler.games + (spieler.gamesIncomplete ? ' *' : '');
+            tbody.innerHTML += `<tr><td>${platzText}</td><td><strong>${spieler.name}</strong></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.siege}</td><td style="text-align: right;">${spieler.saetze}</td><td style="text-align: right;">${gamesTxt}</td></tr>`;
         } else {
             tbody.innerHTML += `<tr><td>${platzText}</td><td><strong>${spieler.name}</strong></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.games}</td></tr>`;
         }
     });
+
+    if (actBewerb === 'Einzel' && sortiert.some(s => s.gamesIncomplete)) {
+        tbody.innerHTML += `<tr><td colspan="5" style="text-align:left; font-size:0.75rem; color:#e67e22; font-style:italic; background:#fff;">* Games unvollständig – für mindestens ein Spiel fehlt der Spielstand</td></tr>`;
+    }
 }
 
 function berechneGesamtrangliste() {
     document.getElementById('gesamt-doppel-body').innerHTML = '<tr><td colspan="3">Lade globale Daten...</td></tr>';
-    document.getElementById('gesamt-einzel-body').innerHTML = '<tr><td colspan="4">Lade globale Daten...</td></tr>';
+    document.getElementById('gesamt-einzel-body').innerHTML = '<tr><td colspan="5">Lade globale Daten...</td></tr>';
 
     database.ref('turnier').once('value').then((snapshot) => {
         const allData = snapshot.val() || {};
@@ -1143,7 +1310,7 @@ function berechneGesamtrangliste() {
                         if (bewerb === 'Doppel') {
                             doppelStats[key] = { name: spieler, gruppe: gruppe, games: 0 };
                         } else {
-                            einzelStats[key] = { name: spieler, gruppe: gruppe, siege: 0, saetze: 0 };
+                            einzelStats[key] = { name: spieler, gruppe: gruppe, siege: 0, saetze: 0, games: 0, gamesIncomplete: false };
                         }
                     }
                 });
@@ -1159,19 +1326,17 @@ function berechneGesamtrangliste() {
             matches.forEach(match => {
                 if (match.gespielt && !match.cancelled) {
                     if (bewerb === 'Einzel') {
+                        const st = einzelStatsFromMatch(match);
                         const p1 = match.spieler[0]; const p2 = match.spieler[1];
-                        const s1 = (match.ergebnisse && match.ergebnisse[p1]) || 0; 
-                        const s2 = (match.ergebnisse && match.ergebnisse[p2]) || 0;
                         const k1 = `${p1} (${gruppe})`; const k2 = `${p2} (${gruppe})`;
-
-                        if(einzelStats[k1]) {
-                            einzelStats[k1].saetze += s1;
-                            if (s1 > s2) einzelStats[k1].siege += 1;
-                        }
-                        if(einzelStats[k2]) {
-                            einzelStats[k2].saetze += s2;
-                            if (s2 > s1) einzelStats[k2].siege += 1;
-                        }
+                        [[p1, k1], [p2, k2]].forEach(([p, k]) => {
+                            if (einzelStats[k]) {
+                                einzelStats[k].saetze += st.satzWins[p];
+                                einzelStats[k].games  += st.games[p];
+                                if (st.winner === p) einzelStats[k].siege += 1;
+                                if (!st.gamesBekannt) einzelStats[k].gamesIncomplete = true;
+                            }
+                        });
                     } else if (bewerb === 'Doppel') {
                         match.spieler.forEach(spieler => {
                             const key = `${spieler} (${gruppe})`;
@@ -1195,7 +1360,7 @@ function berechneGesamtrangliste() {
             doppelTbody.innerHTML += `<tr><td>${platz}</td><td><strong>${spieler.name}</strong> <span style="color:#7f8c8d; font-size:0.8rem;">(Gruppe ${spieler.gruppe})</span></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.games}</td></tr>`;
         });
 
-        let sortiertEinzel = Object.keys(einzelStats).map(k => einzelStats[k]).sort((a, b) => (b.siege !== a.siege) ? (b.siege - a.siege) : (b.saetze - a.saetze));
+        let sortiertEinzel = Object.keys(einzelStats).map(k => einzelStats[k]).sort(cmpEinzel);
         const einzelTbody = document.getElementById('gesamt-einzel-body');
         einzelTbody.innerHTML = '';
         sortiertEinzel.forEach((spieler, idx) => {
@@ -1203,8 +1368,12 @@ function berechneGesamtrangliste() {
             if(idx === 0) platz = '<span class="podium">1🥇</span>';
             if(idx === 1) platz = '2🥈';
             if(idx === 2) platz = '3🥉';
-            einzelTbody.innerHTML += `<tr><td>${platz}</td><td><strong>${spieler.name}</strong> <span style="color:#7f8c8d; font-size:0.8rem;">(Gruppe ${spieler.gruppe})</span></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.siege}</td><td style="text-align: right;">${spieler.saetze}</td></tr>`;
+            const gamesTxt = spieler.games + (spieler.gamesIncomplete ? ' *' : '');
+            einzelTbody.innerHTML += `<tr><td>${platz}</td><td><strong>${spieler.name}</strong> <span style="color:#7f8c8d; font-size:0.8rem;">(Gruppe ${spieler.gruppe})</span></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.siege}</td><td style="text-align: right;">${spieler.saetze}</td><td style="text-align: right;">${gamesTxt}</td></tr>`;
         });
+        if (sortiertEinzel.some(s => s.gamesIncomplete)) {
+            einzelTbody.innerHTML += `<tr><td colspan="5" style="text-align:left; font-size:0.75rem; color:#e67e22; font-style:italic;">* Games unvollständig – für mindestens ein Spiel fehlt der Spielstand</td></tr>`;
+        }
     }).catch(() => {
         alert("Fehler beim Berechnen der Gesamtergebnisse.");
     });
@@ -2167,7 +2336,7 @@ async function exportErgebnissePDF() {
                 doc.text(isDoppel ? 'Team 1' : 'Spieler 1',               C_T1 + 1,     y + 4);
                 doc.text(isDoppel ? 'Team 2' : 'Spieler 2',               C_T2 + 1,     y + 4);
                 doc.text('Sätze',                                          C_SAETZE + 1, y + 4);
-                doc.text(isDoppel ? 'Games (Spieler)' : 'Ranking-Sätze',  C_GAMES + 1,  y + 4);
+                doc.text('Games (Spieler)',                                 C_GAMES + 1,  y + 4);
                 y += 6;
                 doc.setTextColor(0, 0, 0);
 
@@ -2315,19 +2484,25 @@ async function exportErgebnissePDF() {
                                     renderLine(t1clean, y + 3.5);
                                     renderLine(t2clean, y + 8);
                                 } else {
-                                    // Einzel: Gewinnsätze pro Spieler, Gewinner grün
+                                    // Einzel: gewonnene Games pro Spieler (Variante A), Gewinner grün
+                                    const st = einzelStatsFromMatch(fbMatch);
                                     const allSp = (fbMatch.spieler || [...t1clean, ...t2clean]);
-                                    const maxSaetze = Math.max(...allSp.map(p => fbMatch.ergebnisse[p] ?? 0));
-                                    let xPosE = C_GAMES + 1;
-                                    allSp.forEach((p, i) => {
-                                        const s = fbMatch.ergebnisse[p] ?? 0;
-                                        const isWinner = s === maxSaetze;
-                                        doc.setTextColor(isWinner ? COL_WIN[0] : 30, isWinner ? COL_WIN[1] : 30, isWinner ? COL_WIN[2] : 30);
-                                        doc.setFont('helvetica', isWinner ? 'bold' : 'normal');
-                                        const part = `${p}: ${s}` + (i < allSp.length - 1 ? '  |  ' : '');
-                                        doc.text(part, xPosE, y + (rowH / 2) + 1.5);
-                                        xPosE += doc.getTextWidth(part);
-                                    });
+                                    if (st.gamesBekannt) {
+                                        let xPosE = C_GAMES + 1;
+                                        allSp.forEach((p, i) => {
+                                            const g = st.games[p] ?? 0;
+                                            const isWinner = p === st.winner;
+                                            doc.setTextColor(isWinner ? COL_WIN[0] : 30, isWinner ? COL_WIN[1] : 30, isWinner ? COL_WIN[2] : 30);
+                                            doc.setFont('helvetica', isWinner ? 'bold' : 'normal');
+                                            const part = `${p}: ${g}` + (i < allSp.length - 1 ? '  |  ' : '');
+                                            doc.text(part, xPosE, y + (rowH / 2) + 1.5);
+                                            xPosE += doc.getTextWidth(part);
+                                        });
+                                    } else {
+                                        doc.setTextColor(230, 126, 34);
+                                        doc.setFont('helvetica', 'italic');
+                                        doc.text('Spielstand fehlt', C_GAMES + 1, y + (rowH / 2) + 1.5);
+                                    }
                                 }
                             } else {
                                 doc.setTextColor(160, 160, 160);
@@ -2352,7 +2527,7 @@ async function exportErgebnissePDF() {
                     ? firebaseData[bewerb + '_' + gruppe]
                     : Object.values(firebaseData[bewerb + '_' + gruppe] || {});
                 const grpStats = {};
-                grpPlayers.forEach(s => { grpStats[s] = { games: 0, siege: 0, saetze: 0 }; });
+                grpPlayers.forEach(s => { grpStats[s] = { games: 0, siege: 0, saetze: 0, gamesIncomplete: false }; });
                 grpMatches.forEach(match => {
                     if (!match || !match.gespielt || match.cancelled) return;
                     if (isDoppel) {
@@ -2360,24 +2535,28 @@ async function exportErgebnissePDF() {
                             if (grpStats[p]) grpStats[p].games += (match.ergebnisse && match.ergebnisse[p]) || 0;
                         });
                     } else {
+                        const st = einzelStatsFromMatch(match);
                         const sp = match.spieler || [];
-                        const p1 = sp[0]; const p2 = sp[1];
-                        const s1 = (match.ergebnisse && match.ergebnisse[p1]) || 0;
-                        const s2 = (match.ergebnisse && match.ergebnisse[p2]) || 0;
-                        if (grpStats[p1]) { grpStats[p1].saetze += s1; if (s1 > s2) grpStats[p1].siege++; }
-                        if (grpStats[p2]) { grpStats[p2].saetze += s2; if (s2 > s1) grpStats[p2].siege++; }
+                        [sp[0], sp[1]].forEach(p => {
+                            if (grpStats[p]) {
+                                grpStats[p].saetze += st.satzWins[p];
+                                grpStats[p].games  += st.games[p];
+                                if (st.winner === p) grpStats[p].siege++;
+                                if (!st.gamesBekannt) grpStats[p].gamesIncomplete = true;
+                            }
+                        });
                     }
                 });
                 let grpSortiert = Object.keys(grpStats).map(k => ({ name: k, ...grpStats[k] }));
                 if (isDoppel) grpSortiert.sort((a, b) => b.games - a.games);
-                else grpSortiert.sort((a, b) => b.siege !== a.siege ? b.siege - a.siege : b.saetze - a.saetze);
+                else grpSortiert.sort(cmpEinzel);
 
                 if (grpSortiert.length > 0) {
                     const rankH   = 7;
                     const titleH  = 8;
                     const headerH = 6;
                     const pad     = 3;  // innerer Abstand vom Rahmen
-                    const boxW    = usableW * 0.55; // Rangliste nimmt 55% der Breite
+                    const boxW    = usableW * (isDoppel ? 0.55 : 0.66); // Einzel breiter: 3 Zahlenspalten
                     const boxX    = marginL + (usableW - boxW) / 2; // zentriert
                     const totalRankH = titleH + headerH + grpSortiert.length * rankH + pad * 2 + 10;
                     checkPage(totalRankH);
@@ -2414,8 +2593,9 @@ async function exportErgebnissePDF() {
                     if (isDoppel) {
                         doc.text('Games', boxX + boxW - pad - 2, y + 4.2, { align: 'right' });
                     } else {
-                        doc.text('Siege',  boxX + boxW - pad - 18, y + 4.2, { align: 'right' });
-                        doc.text('Sätze',  boxX + boxW - pad - 2,  y + 4.2, { align: 'right' });
+                        doc.text('Siege', boxX + boxW - pad - 34, y + 4.2, { align: 'right' });
+                        doc.text('Sätze', boxX + boxW - pad - 18, y + 4.2, { align: 'right' });
+                        doc.text('Games', boxX + boxW - pad - 2,  y + 4.2, { align: 'right' });
                     }
                     y += headerH;
                     doc.setTextColor(0, 0, 0);
@@ -2458,8 +2638,9 @@ async function exportErgebnissePDF() {
                         if (isDoppel) {
                             doc.text(String(sp.games), boxX + boxW - pad - 2, y + rankH / 2 + 1.5, { align: 'right' });
                         } else {
-                            doc.text(String(sp.siege),  boxX + boxW - pad - 18, y + rankH / 2 + 1.5, { align: 'right' });
-                            doc.text(String(sp.saetze), boxX + boxW - pad - 2,  y + rankH / 2 + 1.5, { align: 'right' });
+                            doc.text(String(sp.siege),  boxX + boxW - pad - 34, y + rankH / 2 + 1.5, { align: 'right' });
+                            doc.text(String(sp.saetze), boxX + boxW - pad - 18, y + rankH / 2 + 1.5, { align: 'right' });
+                            doc.text(String(sp.games) + (sp.gamesIncomplete ? '*' : ''), boxX + boxW - pad - 2, y + rankH / 2 + 1.5, { align: 'right' });
                         }
 
                         // Trennlinie
@@ -2487,7 +2668,7 @@ async function exportErgebnissePDF() {
                     if (sp !== 'Gast' && sp !== 'Mister X') {
                         const key = `${sp}||${gr}`;
                         if (bw === 'Doppel') doppelStats[key] = { name: sp, gruppe: gr, games: 0 };
-                        else einzelStats[key] = { name: sp, gruppe: gr, siege: 0, saetze: 0 };
+                        else einzelStats[key] = { name: sp, gruppe: gr, siege: 0, saetze: 0, games: 0, gamesIncomplete: false };
                     }
                 });
             });
@@ -2501,13 +2682,18 @@ async function exportErgebnissePDF() {
             vals2.forEach(match => {
                 if (!match || !match.gespielt || match.cancelled) return;
                 if (bw === 'Einzel') {
+                    const st = einzelStatsFromMatch(match);
                     const sp = match.spieler || [];
                     const p1 = sp[0]; const p2 = sp[1];
-                    const s1 = (match.ergebnisse && match.ergebnisse[p1]) || 0;
-                    const s2 = (match.ergebnisse && match.ergebnisse[p2]) || 0;
                     const k1 = `${p1}||${gr}`; const k2 = `${p2}||${gr}`;
-                    if (einzelStats[k1]) { einzelStats[k1].saetze += s1; if (s1 > s2) einzelStats[k1].siege++; }
-                    if (einzelStats[k2]) { einzelStats[k2].saetze += s2; if (s2 > s1) einzelStats[k2].siege++; }
+                    [[p1, k1], [p2, k2]].forEach(([p, k]) => {
+                        if (einzelStats[k]) {
+                            einzelStats[k].saetze += st.satzWins[p];
+                            einzelStats[k].games  += st.games[p];
+                            if (st.winner === p) einzelStats[k].siege++;
+                            if (!st.gamesBekannt) einzelStats[k].gamesIncomplete = true;
+                        }
+                    });
                 } else if (bw === 'Doppel') {
                     (match.spieler || []).forEach(sp => {
                         const key = `${sp}||${gr}`;
@@ -2518,8 +2704,7 @@ async function exportErgebnissePDF() {
         });
 
         const sortiertDoppel = Object.values(doppelStats).sort((a, b) => b.games - a.games);
-        const sortiertEinzel = Object.values(einzelStats).sort((a, b) =>
-            b.siege !== a.siege ? b.siege - a.siege : b.saetze - a.saetze);
+        const sortiertEinzel = Object.values(einzelStats).sort(cmpEinzel);
 
         // Ranking-Seite zeichnen
         function drawRankingSection(title, rows, cols) {
@@ -2619,7 +2804,8 @@ async function exportErgebnissePDF() {
             { label: 'Spieler', value: (r) => r.name },
             { label: 'Gruppe',  value: (r) => 'Gruppe ' + r.gruppe },
             { label: 'Siege',   value: (r) => r.siege,  align: 'right' },
-            { label: 'Sätze',   value: (r) => r.saetze, align: 'right' }
+            { label: 'Sätze',   value: (r) => r.saetze, align: 'right' },
+            { label: 'Games',   value: (r) => r.games + (r.gamesIncomplete ? '*' : ''), align: 'right' }
         ]);
 
         // ══════════════════════════════════════════════════════════════════════
