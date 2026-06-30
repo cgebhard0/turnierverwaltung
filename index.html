@@ -276,8 +276,6 @@
         .set-row .set-colon { font-weight: bold; color: #bdc3c7; text-align: center; }
         .set-row input { width: 100%; padding: 8px 4px; border: 2px solid #bdc3c7; border-radius: 6px; text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--secondary); -webkit-appearance: none; transition: border-color 0.2s; }
         .set-row input:focus { border-color: var(--primary); outline: none; }
-        .set-row.set-tb { background: #fef5ec; border-color: #f0b27a; }
-        .set-row.set-tb .set-label { color: #e67e22; }
 
         .modal-buttons { display: flex; gap: 10px; margin-top: 25px; }
         .btn-cancel { background: #95a5a6; }
@@ -523,7 +521,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.7.1";
 const BUILD_DATE  = "2026-06-30";
 
 const firebaseConfig = {
@@ -998,7 +996,7 @@ function openModal(id) {
 
     if (isEinzel) {
         document.getElementById('modalTitle').innerText = "Spielstand eintragen";
-        document.getElementById('modalHint').innerText = "Games je Satz eintragen (z. B. 6 : 4). Bei Satzgleichstand 1:1 den 3. Satz als Match-Tiebreak (z. B. 10 : 8).";
+        document.getElementById('modalHint').innerText = "Games je Satz eintragen (z. B. 6 : 4). Bei Satzgleichstand 1:1 wird ein voller 3. Satz gespielt.";
 
         const p1 = match.spieler[0], p2 = match.spieler[1];
         const sets = getSaetze(match) || [];
@@ -1006,8 +1004,8 @@ function openModal(id) {
 
         let html = `<div class="set-players"><span></span><span>${p1}</span><span></span><span>${p2}</span></div>`;
         for (let i = 0; i < 3; i++) {
-            const label = i < 2 ? ('Satz ' + (i + 1)) : 'Match-TB';
-            html += `<div class="set-row${i === 2 ? ' set-tb' : ''}">
+            const label = 'Satz ' + (i + 1);
+            html += `<div class="set-row">
                 <span class="set-label">${label}</span>
                 <input type="number" min="0" inputmode="numeric" pattern="[0-9]*" id="set_${i}_0" value="${val(i, 0)}">
                 <span class="set-colon">:</span>
@@ -1075,14 +1073,14 @@ function saveScore() {
         let sw1 = 0, sw2 = 0;
         [rows[0], rows[1]].forEach(([a, b]) => { if (a > b) sw1++; else sw2++; });
         if (sw1 === 2 || sw2 === 2) {
-            if (rows[2]) { alert("Bei 2:0 nach zwei Sätzen darf kein 3. Satz (Match-Tiebreak) eingetragen werden."); return; }
+            if (rows[2]) { alert("Bei 2:0 nach zwei Sätzen darf kein 3. Satz eingetragen werden."); return; }
         } else {
-            if (!rows[2]) { alert("Satzstand 1:1 – bitte den 3. Satz (Match-Tiebreak) eintragen."); return; }
+            if (!rows[2]) { alert("Satzstand 1:1 – bitte den 3. Satz eintragen."); return; }
             const [a, b] = rows[2]; if (a > b) sw1++; else sw2++;
         }
 
         const sets = rows.filter(r => r);
-        const unplausibel = sets.some((paar, i) => !istStandardSatz(paar[0], paar[1], i === 2));
+        const unplausibel = sets.some((paar) => !istStandardSatz(paar[0], paar[1]));
         if (unplausibel && !confirm("Mindestens ein Satz wirkt ungewöhnlich (kein Standard-Ergebnis). Trotzdem speichern?")) return;
 
         // Ableiten: Gewinnsätze, Sieger, Detail-String – Games werden zur Laufzeit berechnet
@@ -1139,7 +1137,7 @@ function resetMatch(id) {
 
 // -------------------------------------------------------------------------
 // EINZEL-WERTUNG (gemeinsam für App-Rangliste + PDF)
-// Reihenfolge: Siege → Sätze → Games   |   3. Satz = Match-Tiebreak = 1 Game (Variante A)
+// Reihenfolge: Siege → Sätze → Games   |   Best of 3, 3. Satz = vollwertiger Satz (Games zählen voll)
 // -------------------------------------------------------------------------
 
 // Parst "6:4, 4:6, 10:8" → [[6,4],[4,6],[10,8]] (Fallback für Altdaten ohne match.saetze)
@@ -1161,11 +1159,11 @@ function getSaetze(match) {
 }
 
 // Plausibilitätsprüfung eines Satzes (nur für Eingabe-Warnung, nicht blockierend)
-function istStandardSatz(a, b, istMatchTB) {
+// Gilt für alle drei Sätze gleich – der 3. Satz ist ein vollwertiger Satz.
+function istStandardSatz(a, b) {
     const hi = Math.max(a, b), lo = Math.min(a, b);
-    if (istMatchTB) return hi >= 10 && (hi - lo) >= 2;   // Champions-Tiebreak (bis 10, 2 Punkte Vorsprung)
-    if (hi === 6) return lo <= 4;                         // 6:0 … 6:4
-    if (hi === 7) return lo === 5 || lo === 6;            // 7:5, 7:6
+    if (hi === 7) return lo === 5 || lo === 6;   // 7:5, 7:6 (Tiebreak-Satz)
+    if (hi >= 6) return (hi - lo) >= 2;           // 6:0 … 6:4 sowie Vorteilssätze (8:6, 10:8 …)
     return false;
 }
 
@@ -1183,15 +1181,11 @@ function einzelStatsFromMatch(match) {
     const sets = getSaetze(match);
     if (sets && sets.length >= 2 && sets.length <= 3) {
         let sw1 = 0, sw2 = 0, ok = true;
-        sets.forEach((paar, idx) => {
+        sets.forEach((paar) => {                    // alle Sätze (auch der 3.) zählen mit vollen Games
             const a = paar[0], b = paar[1];
             if (a === b) { ok = false; return; }
-            if (idx === 2) {                       // 3. Satz = Match-Tiebreak → 1 Game an Sieger
-                if (a > b) { sw1++; out.games[p1] += 1; } else { sw2++; out.games[p2] += 1; }
-            } else {                                // normale Sätze → Games voll
-                out.games[p1] += a; out.games[p2] += b;
-                if (a > b) sw1++; else sw2++;
-            }
+            out.games[p1] += a; out.games[p2] += b;
+            if (a > b) sw1++; else sw2++;
         });
         if (ok && Math.max(sw1, sw2) === 2 && Math.min(sw1, sw2) <= 1) {
             out.satzWins[p1] = sw1; out.satzWins[p2] = sw2;
