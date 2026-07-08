@@ -562,7 +562,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.9.5";
+const APP_VERSION = "1.9.6";
 const BUILD_DATE  = "2026-07-08";
 
 const firebaseConfig = {
@@ -991,21 +991,25 @@ function initBewerbDropdown() {
 }
 
 function initSelects() {
-    // Bewerb-Auswahl absichern (z. B. wenn ein importierter Bewerb fehlt)
-    if (!gruppenStruktur[actBewerb]) actBewerb = 'Doppel';
+    // Bewerb-Auswahl absichern: nur Bewerbe mit vollständigen Daten zulassen
+    if (!gruppenStruktur[actBewerb] || !spielerListen[actBewerb]) {
+        actBewerb = Object.keys(gruppenStruktur).find(b => spielerListen[b] && standardSpiele[b]) || 'Doppel';
+    }
     initBewerbDropdown();
 
+    const gruppen = gruppenStruktur[actBewerb] || [];
     const gDrop = document.getElementById('groupDropdown');
     gDrop.innerHTML = '';
-    gruppenStruktur[actBewerb].forEach(g => { gDrop.innerHTML += `<option value="${g}">Gruppe ${g}</option>`; });
-    if (!gruppenStruktur[actBewerb].includes(actGroup)) actGroup = gruppenStruktur[actBewerb][0];
+    gruppen.forEach(g => { gDrop.innerHTML += `<option value="${g}">Gruppe ${g}</option>`; });
+    if (!gruppen.includes(actGroup)) actGroup = gruppen[0];
     gDrop.value = actGroup;
 
     const uDrop = document.getElementById('userDropdown');
     uDrop.innerHTML = '<option value="Gast">Gast</option><option value="Admin">Admin</option>';
     // ✦ markiert Mitglieder dieser Gruppe
-    spielerListen[actBewerb][actGroup].forEach(user => { 
-        if (user !== "Gast") uDrop.innerHTML += `<option value="${user}">${user} ✦</option>`; 
+    const spielerDerGruppe = (spielerListen[actBewerb] && spielerListen[actBewerb][actGroup]) || [];
+    spielerDerGruppe.forEach(user => {
+        if (user !== "Gast") uDrop.innerHTML += `<option value="${user}">${user} ✦</option>`;
     });
     
     if (isAdminLoggedIn) {
@@ -1045,8 +1049,9 @@ function listenToFirebase() {
                 if (!match.detailErgebnis) match.detailErgebnis = "";
             });
         } else {
-            spiele = JSON.parse(JSON.stringify(standardSpiele[actBewerb][actGroup]));
-            currentDbRef.set(spiele);
+            const std = (standardSpiele[actBewerb] && standardSpiele[actBewerb][actGroup]) || [];
+            spiele = JSON.parse(JSON.stringify(std));
+            if (std.length) currentDbRef.set(spiele);
         }
         
         updateProgressBar();
@@ -1063,7 +1068,7 @@ function listenToFirebase() {
 function changeBewerb() {
     actBewerb = document.getElementById('bewerbDropdown').value;
     safeStorage.setItem('steindorfer_bewerb', actBewerb);
-    actGroup = gruppenStruktur[actBewerb][0];
+    actGroup = (gruppenStruktur[actBewerb] || ['A'])[0];
     changeState();
 }
 
