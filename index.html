@@ -202,6 +202,10 @@
         .match-card { background: var(--card-bg); border-radius: 8px; padding: 15px; margin-bottom: 15px; border: 1px solid #eef0f2; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: transform 0.2s; }
         .match-card-done { border: 2px solid #27ae60; box-shadow: 0 2px 10px rgba(39,174,96,0.15); }
         .match-card-open { border: 2px solid #e67e22; box-shadow: 0 2px 8px rgba(230,126,34,0.12); }
+        /* Archivierte (abgelaufene) Spiele – roter Hintergrund passend zum Akzent */
+        .match-card-archiviert { background: #fdecea; border: 2px solid #e6b0aa; box-shadow: 0 2px 10px rgba(146,43,33,0.12); }
+        .runde-header.runde-header-archiviert { background: #f9e4e1; border-left: 4px solid var(--accent); color: #922b21; padding: 5px 10px; border-radius: 0 6px 6px 0; }
+        .runde-header.runde-header-archiviert .runde-datum { color: #b03a2e; }
         .match-status { display: inline-block; font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; font-weight: bold; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .status-offen { background: #fff3cd; color: #856404; }
@@ -415,7 +419,6 @@
             Bewerb: 
             <select id="bewerbDropdown" onchange="changeBewerb()">
                 <option value="Doppel">Doppel</option>
-                <option value="Einzel">Einzel</option>
             </select>
         </div>
         <div class="select-container">
@@ -470,7 +473,14 @@
                     <button class="btn admin-btn admin-btn-dark" onclick="exportSpielplanCSV()">📅 Spielplan exportieren</button>
                 </div>
                 <div class="admin-btn-row" style="margin-top: 8px;">
-                    <button class="btn admin-btn admin-btn-orange admin-btn-full" onclick="triggerSpielplanImport()">📥 Spielplan importieren (CSV)</button>
+                    <button class="btn admin-btn admin-btn-full" style="background:#8e44ad;" onclick="triggerBewerbImport('Einzel')">🎾 Einzel importieren (neue Runde)</button>
+                </div>
+                <div class="admin-btn-row" style="margin-top: 8px;">
+                    <button class="btn admin-btn admin-btn-full" style="background:#c0392b;" onclick="triggerBewerbImport('Doppel')">🏆 Doppel importieren (neue Runde)</button>
+                </div>
+                <input type="file" id="bewerbImportField" accept=".csv" style="display: none;" onchange="importBewerbCSV(event)">
+                <div class="admin-btn-row" style="margin-top: 8px;">
+                    <button class="btn admin-btn admin-btn-orange admin-btn-full" onclick="triggerSpielplanImport()">⚠️ Kompletter Spielplan-Reset (CSV)</button>
                     <input type="file" id="spielplanImportField" accept=".csv" style="display: none;" onchange="importSpielplanCSV(event)">
                 </div>
             </div>
@@ -552,8 +562,8 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.7.3";
-const BUILD_DATE  = "2026-06-30";
+const APP_VERSION = "1.9.5";
+const BUILD_DATE  = "2026-07-08";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDpI-0rnr8Z-DW9jW3ebfuXjSPKksb81mc",
@@ -578,8 +588,95 @@ const safeStorage = {
     removeItem: (key) => { try { localStorage.removeItem(key); } catch(e) {} }
 };
 
+// ── Wettbewerbs-Verwaltung (Typen, Runden, Fristen, Archiv) ──────────────
+// Das Register 'wettbewerbe' (Abschnitt 3) beschreibt jeden Bewerb:
+//   { typ:'Einzel'|'Doppel', label, runde, frist:'YYYY-MM-DD', archiviert:bool }
+// Einzel und Doppel werden getrennt importiert; nach Fristablauf oder beim
+// Import einer neuen Runde wandert die bisherige Runde ins Archiv.
+
+function heuteISO() { return new Date().toISOString().slice(0, 10); }
+
+// ISO-Datum (YYYY-MM-DD) → DD.MM.YYYY
+function deDatum(iso) {
+    if (!iso) return '';
+    const p = String(iso).split('-');
+    return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso;
+}
+
+// Typ eines Bewerbs (Register bevorzugt, sonst aus dem Namen abgeleitet)
+function bewerbTyp(b) {
+    if (typeof wettbewerbe !== 'undefined' && wettbewerbe[b] && wettbewerbe[b].typ) return wettbewerbe[b].typ;
+    return (typeof b === 'string' && b.indexOf('Doppel') === 0) ? 'Doppel' : 'Einzel';
+}
+function istEinzel(b) { return bewerbTyp(b) === 'Einzel'; }
+
+// Anzeigename
+// Anzeigename wird abgeleitet.
+//   Doppel: "Doppel · Saisonbewerb JAHR"          (ohne Nummer)
+//   Einzel: "Einzel · N. Saisonbewerb JAHR"       (mit Position N)
+function bewerbLabel(b) {
+    const w = (typeof wettbewerbe !== 'undefined') ? wettbewerbe[b] : null;
+    if (!w) return b;
+    const typ  = w.typ;
+    const jahr = (w.frist && String(w.frist).slice(0, 4)) || String(new Date().getFullYear());
+    if (typ === 'Doppel') return `Doppel · Saisonbewerb ${jahr}`;
+    const gleiche = Object.keys(wettbewerbe)
+        .filter(k => wettbewerbe[k].typ === typ && (typeof gruppenStruktur === 'undefined' || gruppenStruktur[k]))
+        .sort((a, c) => ((wettbewerbe[a].runde || 0) - (wettbewerbe[c].runde || 0)) || (a < c ? -1 : 1));
+    let nr = gleiche.indexOf(b) + 1;
+    if (nr === 0) nr = 1;
+    return `${typ} · ${nr}. Saisonbewerb ${jahr}`;
+}
+
+// Frist des Bewerbs als DD.MM.YYYY (oder '')
+function fristAnzeige(b) {
+    const w = (typeof wettbewerbe !== 'undefined') ? wettbewerbe[b] : null;
+    return (w && w.frist) ? deDatum(w.frist) : '';
+}
+
+// Archiviert: explizit markiert ODER Frist überschritten
+function istArchiviert(b) {
+    const w = (typeof wettbewerbe !== 'undefined') ? wettbewerbe[b] : null;
+    if (!w) return false;
+    if (w.archiviert === true) return true;
+    if (w.frist && heuteISO() > w.frist) return true;
+    return false;
+}
+
+// Aktiver (nicht archivierter) Bewerb eines Typs – höchste Runde gewinnt
+function aktiverBewerb(typ) {
+    let best = null, bestR = -1;
+    if (typeof wettbewerbe === 'undefined') return null;
+    Object.keys(wettbewerbe).forEach(k => {
+        const w = wettbewerbe[k];
+        const hatDaten = (typeof gruppenStruktur !== 'undefined') && gruppenStruktur[k];
+        if (w && w.typ === typ && hatDaten && !istArchiviert(k) && (w.runde || 1) > bestR) { best = k; bestR = (w.runde || 1); }
+    });
+    return best;
+}
+
+// Namens-Korrekturen beim Import (gleiche Person, andere Schreibweise)
+// Aktuell keine – Namen werden 1:1 aus der CSV übernommen.
+const SPIELER_ALIASSE = {};
+function normSpieler(name) {
+    const n = (name || '').trim();
+    return SPIELER_ALIASSE[n] || n;
+}
+
+// Frist-Eingabe (TT.MM.JJJJ oder YYYY-MM-DD) → ISO oder null
+function parseFristEingabe(s) {
+    s = (s || '').trim();
+    let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return s;
+    return null;
+}
+
 function darfErgebnisEintragen(match, currentUser) {
     if (currentUser === 'Admin') return true;
+    // Archivierte / abgelaufene Wettbewerbe: nur der Admin darf noch bearbeiten
+    if (istArchiviert(actBewerb)) return false;
     if (!currentUser || currentUser === 'Gast') return false;
     return match.spieler.includes(currentUser);
 }
@@ -587,9 +684,20 @@ function darfErgebnisEintragen(match, currentUser) {
 // -------------------------------------------------------------------------
 // 3. TURNIER-DATEN (Struktur, Spieler & PINs) OHNE PUNKTE IN NAMEN
 // -------------------------------------------------------------------------
-let gruppenStruktur = { 
-    'Doppel': ['A', 'B', 'C'], 
-    'Einzel': ['A', 'B', 'C', 'D', 'E'] 
+let gruppenStruktur = {
+    'Doppel': ['A', 'B', 'C'],
+    'Einzel': ['A', 'B', 'C', 'D', 'E'],
+    'EinzelR2': ['A', 'B', 'C', 'D', 'E']
+};
+
+// ── Wettbewerbs-Register ─────────────────────────────────────────────────
+// Beschreibt jeden Bewerb: Typ, Anzeigename, Runde, Frist (End-Datum) und
+// Archiv-Status. Neue Runden werden über den CSV-Import angelegt.
+// Anzeigenamen werden aus Typ + Position + Jahr abgeleitet (siehe bewerbLabel).
+let wettbewerbe = {
+    'Doppel':   { typ: 'Doppel', runde: 1, frist: '2026-08-30', archiviert: false },
+    'Einzel':   { typ: 'Einzel', runde: 1, frist: '2026-06-30', archiviert: true  },
+    'EinzelR2': { typ: 'Einzel', runde: 2, frist: '2026-09-11', archiviert: false }
 };
 
 let spielerListen = {
@@ -604,13 +712,20 @@ let spielerListen = {
         'C': ["Gast", "Hannes", "Christian", "Sandra", "Köste", "Stefan T"],
         'D': ["Gast", "Michaela", "Silke", "Zippe", "Sabrina"],
         'E': ["Gast", "Simone", "Bici", "Anna B", "Anna K"]
+    },
+    'EinzelR2': {
+        'A': ["Gast", "Elmar", "Peter", "Pedro", "Franky"],
+        'B': ["Gast", "Nina", "Andreas", "Köste", "Stefan P", "Robi"],
+        'C': ["Gast", "Hannes", "Christian", "Zippe", "Günter", "Stefan T"],
+        'D': ["Gast", "Bici", "Silke", "Sandra", "Sabrina"],
+        'E': ["Gast", "Simone", "Michaela", "Anna B", "Anna K"]
     }
 };
 
 let playerPins = {
     "Admin": "1301",
     "Franky": "8472", "Andreas": "3910", "Elmar": "5201", "Andy": "7749",
-    "Nina": "1038", "Pedro": "6621", "Günther": "9345", "Hannes": "2184",
+    "Nina": "1038", "Pedro": "6621", "Günther": "9345", "Günter": "9345", "Hannes": "2184",
     "Stefan P": "4092", "Köste": "8133", "Peter": "5509", "Robi": "7291",
     "Christian": "1301", "Simone": "3920", "Zippe": "1184", "Gabi": "5039",
     "Sandra": "8274", "Wolfi": "6305", "Dietmar": "2847",
@@ -737,6 +852,55 @@ let turnierSpielplaene = {
         { runde: 2, team1: ["Bici"], team2: ["Anna K"] },
         { runde: 3, team1: ["Simone"], team2: ["Anna K"] },
         { runde: 3, team1: ["Bici"], team2: ["Anna B"] }
+    ],
+    // ── Einzel 2. Runde (aktiv) – bis 11.09.2026, 2 Gewinnsätze ──────────────
+    "EinzelR2 A": [
+        { runde: 1, team1: ["Elmar"], team2: ["Peter"] },
+        { runde: 1, team1: ["Pedro"], team2: ["Franky"] },
+        { runde: 2, team1: ["Elmar"], team2: ["Pedro"] },
+        { runde: 2, team1: ["Peter"], team2: ["Franky"] },
+        { runde: 3, team1: ["Elmar"], team2: ["Franky"] },
+        { runde: 3, team1: ["Peter"], team2: ["Pedro"] }
+    ],
+    "EinzelR2 B": [
+        { runde: 1, team1: ["Nina"], team2: ["Andreas"] },
+        { runde: 1, team1: ["Köste"], team2: ["Stefan P"] },
+        { runde: 2, team1: ["Robi"], team2: ["Nina"] },
+        { runde: 2, team1: ["Andreas"], team2: ["Köste"] },
+        { runde: 3, team1: ["Stefan P"], team2: ["Robi"] },
+        { runde: 3, team1: ["Nina"], team2: ["Köste"] },
+        { runde: 4, team1: ["Andreas"], team2: ["Stefan P"] },
+        { runde: 4, team1: ["Köste"], team2: ["Robi"] },
+        { runde: 5, team1: ["Nina"], team2: ["Stefan P"] },
+        { runde: 5, team1: ["Andreas"], team2: ["Robi"] }
+    ],
+    "EinzelR2 C": [
+        { runde: 1, team1: ["Hannes"], team2: ["Christian"] },
+        { runde: 1, team1: ["Zippe"], team2: ["Günter"] },
+        { runde: 2, team1: ["Stefan T"], team2: ["Hannes"] },
+        { runde: 2, team1: ["Christian"], team2: ["Zippe"] },
+        { runde: 3, team1: ["Günter"], team2: ["Stefan T"] },
+        { runde: 3, team1: ["Hannes"], team2: ["Zippe"] },
+        { runde: 4, team1: ["Christian"], team2: ["Günter"] },
+        { runde: 4, team1: ["Zippe"], team2: ["Stefan T"] },
+        { runde: 5, team1: ["Hannes"], team2: ["Günter"] },
+        { runde: 5, team1: ["Christian"], team2: ["Stefan T"] }
+    ],
+    "EinzelR2 D": [
+        { runde: 1, team1: ["Bici"], team2: ["Silke"] },
+        { runde: 1, team1: ["Sandra"], team2: ["Sabrina"] },
+        { runde: 2, team1: ["Bici"], team2: ["Sandra"] },
+        { runde: 2, team1: ["Silke"], team2: ["Sabrina"] },
+        { runde: 3, team1: ["Bici"], team2: ["Sabrina"] },
+        { runde: 3, team1: ["Silke"], team2: ["Sandra"] }
+    ],
+    "EinzelR2 E": [
+        { runde: 1, team1: ["Simone"], team2: ["Michaela"] },
+        { runde: 1, team1: ["Anna B"], team2: ["Anna K"] },
+        { runde: 2, team1: ["Simone"], team2: ["Anna B"] },
+        { runde: 2, team1: ["Michaela"], team2: ["Anna K"] },
+        { runde: 3, team1: ["Simone"], team2: ["Anna K"] },
+        { runde: 3, team1: ["Michaela"], team2: ["Anna B"] }
     ]
 };
 
@@ -746,27 +910,31 @@ let turnierSpielplaene = {
 let standardSpiele = {};
 
 function generiereStandardSpiele() {
-    standardSpiele = { 
-        'Doppel': { 'A': [], 'B': [], 'C': [] }, 
-        'Einzel': { 'A': [], 'B': [], 'C': [], 'D': [], 'E': [] } 
-    };
+    // Struktur dynamisch aus den vorhandenen Spielplänen aufbauen,
+    // damit beliebige Bewerbe (z. B. Einzel 2. Runde) unterstützt werden.
+    standardSpiele = {};
 
     Object.keys(turnierSpielplaene).forEach(key => {
         const parts = key.split(" ");
-        const bewerb = parts[0]; 
-        const gruppe = parts[1]; 
+        const bewerb = parts[0];
+        const gruppe = parts[1];
         let matchIndex = 1;
-        
+
+        if(!standardSpiele[bewerb]) standardSpiele[bewerb] = {};
         if(!standardSpiele[bewerb][gruppe]) standardSpiele[bewerb][gruppe] = [];
+
+        // Standard-Frist je Bewerb aus dem Register (sonst Fallback)
+        const wettb = wettbewerbe[bewerb];
+        const standardDatum = (wettb && wettb.frist) ? ("bis " + deDatum(wettb.frist)) : "bis 30.06.2026";
 
         turnierSpielplaene[key].forEach(spiel => {
             const rawSpieler = [...spiel.team1, ...spiel.team2];
             const cleanSpieler = rawSpieler.map(name => name.replace('*', ''));
-            
+
             standardSpiele[bewerb][gruppe].push({
                 id: `${bewerb.charAt(0).toLowerCase()}_${gruppe}_${matchIndex}`,
                 runde: `Runde ${spiel.runde}`,
-                datum: spiel.datum || "bis 30.06.2026",
+                datum: spiel.datum || standardDatum,
                 spieler: cleanSpieler,
                 gespielt: false,
                 cancelled: false,
@@ -792,7 +960,41 @@ let isAdminLoggedIn = (currentUser === 'Admin');
 
 document.getElementById('bewerbDropdown').value = actBewerb;
 
+function initBewerbDropdown() {
+    const bDrop = document.getElementById('bewerbDropdown');
+    if (!bDrop) return;
+    const alle = Object.keys(gruppenStruktur);
+    // Sortierung: Doppel-Typ zuerst, dann Einzel; innerhalb nach Runde
+    const sortFn = (a, c) => {
+        const ta = bewerbTyp(a), tc = bewerbTyp(c);
+        if (ta !== tc) return ta === 'Doppel' ? -1 : 1;
+        const ra = (wettbewerbe[a] && wettbewerbe[a].runde) || 0;
+        const rc = (wettbewerbe[c] && wettbewerbe[c].runde) || 0;
+        return ra - rc;
+    };
+    const aktiv  = alle.filter(b => !istArchiviert(b)).sort(sortFn);
+    const archiv = alle.filter(b =>  istArchiviert(b)).sort(sortFn);
+    // Flache Liste ohne Gruppen (keine Leerzeilen).
+    // Im Menü: weiße Schrift, Hintergrund grün (aktiv) bzw. rot (archiviert).
+    const opt = b => {
+        const style = istArchiviert(b)
+            ? 'color:#fff;background:#c0392b;'
+            : 'color:#fff;background:#1e8449;';
+        return `<option value="${b}" style="${style}">${bewerbLabel(b)}</option>`;
+    };
+    bDrop.innerHTML = aktiv.map(opt).join('') + archiv.map(opt).join('');
+
+    if (!alle.includes(actBewerb)) actBewerb = aktiv[0] || alle[0] || 'Doppel';
+    bDrop.value = actBewerb;
+    // Geschlossenes Auswahlfeld: weiße Schrift beibehalten (wie Header-Design)
+    bDrop.style.color = '#fff';
+}
+
 function initSelects() {
+    // Bewerb-Auswahl absichern (z. B. wenn ein importierter Bewerb fehlt)
+    if (!gruppenStruktur[actBewerb]) actBewerb = 'Doppel';
+    initBewerbDropdown();
+
     const gDrop = document.getElementById('groupDropdown');
     gDrop.innerHTML = '';
     gruppenStruktur[actBewerb].forEach(g => { gDrop.innerHTML += `<option value="${g}">Gruppe ${g}</option>`; });
@@ -936,18 +1138,27 @@ function renderSpiele() {
     const liste = document.getElementById('spiele-liste');
     liste.innerHTML = '';
 
+    // Hinweis-Banner für archivierte / abgelaufene Wettbewerbe
+    if (istArchiviert(actBewerb)) {
+        const f = fristAnzeige(actBewerb);
+        liste.innerHTML += `<div style="background:#fdecea; border:1px solid #e6b0aa; color:#922b21; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:0.9rem; text-align:center;">
+            &#9888; <strong>${bewerbLabel(actBewerb)} &ndash; archiviert${f ? ' (Frist ' + f + ')' : ''}.</strong> Diese Spiele dienen nur noch der Ansicht. Ergebnisse kann nur der Admin ändern.</div>`;
+    }
+
     let aktuelleRunde = "";
-    
+    const archiviert = istArchiviert(actBewerb);
+
     spiele.forEach(match => {
         if (match.runde !== aktuelleRunde) {
             aktuelleRunde = match.runde;
             const datumAnzeige = (!match.datum || match.datum === 'TBA') ? 'bis 30.06.2026' : match.datum;
-            liste.innerHTML += `<div class="runde-header">${aktuelleRunde} <span class="runde-datum">(${datumAnzeige})</span></div>`;
+            const rhClass = 'runde-header' + (archiviert ? ' runde-header-archiviert' : '');
+            liste.innerHTML += `<div class="${rhClass}">${aktuelleRunde} <span class="runde-datum">(${datumAnzeige})</span></div>`;
         }
-        
+
         const card = document.createElement('div');
         const cardClass = match.cancelled ? '' : match.gespielt ? ' match-card-done' : ' match-card-open';
-        card.className = 'match-card' + cardClass;
+        card.className = 'match-card' + cardClass + (archiviert ? ' match-card-archiviert' : '');
         
         const hasPermission = darfErgebnisEintragen(match, currentUser);
         let statusClass = match.gespielt ? 'status-gespielt' : 'status-offen';
@@ -976,14 +1187,14 @@ function renderSpiele() {
             let detailString = '';
             if (match.detailErgebnis) {
                 let gamesStr = '';
-                if (actBewerb === 'Einzel') {
+                if (istEinzel(actBewerb)) {
                     const st = einzelStatsFromMatch(match);
                     if (st.gamesBekannt) {
                         gamesStr = ` &middot; Games: <strong>${st.games[match.spieler[0]]}:${st.games[match.spieler[1]]}</strong>`;
                     }
                 }
                 detailString = `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.9rem; font-weight: normal; color: #2c3e50;">Sätze: <strong>${match.detailErgebnis}</strong>${gamesStr}</div>`;
-            } else if (actBewerb === 'Einzel') {
+            } else if (istEinzel(actBewerb)) {
                 detailString = `<hr style="margin: 8px 0; border: none; border-top: 1px dashed #bdc3c7;"><div style="font-size: 0.85rem; font-weight: bold; color: #e67e22;">&#9888; Spielstand nachzutragen</div>`;
             }
             
@@ -1020,7 +1231,7 @@ function openModal(id) {
     if (!match || match.cancelled) return;
     
     document.getElementById('matchId').value = id;
-    const isEinzel = actBewerb === 'Einzel';
+    const isEinzel = istEinzel(actBewerb);
 
     const inputsContainer = document.getElementById('modalInputs');
     inputsContainer.innerHTML = '';
@@ -1083,7 +1294,7 @@ function saveScore() {
         return;
     }
 
-    if (actBewerb === 'Einzel') {
+    if (istEinzel(actBewerb)) {
         const p1 = match.spieler[0], p2 = match.spieler[1];
 
         // Satz-Eingaben lesen (Best of 3)
@@ -1245,7 +1456,7 @@ function cmpEinzel(a, b) {
 
 function berechneRangliste() {
     const header = document.getElementById('ranking-header');
-    if (actBewerb === 'Einzel') {
+    if (istEinzel(actBewerb)) {
         header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Siege</th><th style="text-align: right;">Sätze</th><th style="text-align: right;">Games</th>`;
     } else {
         header.innerHTML = `<th style="width: 60px;">Platz</th><th>Spieler</th><th style="text-align: right;">Games</th>`;
@@ -1290,7 +1501,7 @@ function berechneRangliste() {
     }
 
     let sortiert = Object.keys(stats).map(key => ({ name: key, ...stats[key] }));
-    if (actBewerb === 'Einzel') {
+    if (istEinzel(actBewerb)) {
         sortiert.sort(cmpEinzel);
     } else {
         sortiert.sort((a, b) => b.games - a.games);
@@ -1304,7 +1515,7 @@ function berechneRangliste() {
         if(index === 1) platzText = '2🥈';
         if(index === 2) platzText = '3🥉';
         
-        if (actBewerb === 'Einzel') {
+        if (istEinzel(actBewerb)) {
             const gamesTxt = spieler.games + (spieler.gamesIncomplete ? ' *' : '');
             tbody.innerHTML += `<tr><td>${platzText}</td><td><strong>${spieler.name}</strong></td><td style="text-align: right; font-weight: bold; color: var(--primary);">${spieler.siege}</td><td style="text-align: right;">${spieler.saetze}</td><td style="text-align: right;">${gamesTxt}</td></tr>`;
         } else {
@@ -1312,7 +1523,7 @@ function berechneRangliste() {
         }
     });
 
-    if (actBewerb === 'Einzel' && sortiert.some(s => s.gamesIncomplete)) {
+    if (istEinzel(actBewerb) && sortiert.some(s => s.gamesIncomplete)) {
         tbody.innerHTML += `<tr><td colspan="5" style="text-align:left; font-size:0.75rem; color:#e67e22; font-style:italic; background:#fff;">* Games unvollständig – für mindestens ein Spiel fehlt der Spielstand</td></tr>`;
     }
 }
@@ -1320,6 +1531,10 @@ function berechneRangliste() {
 function berechneGesamtrangliste() {
     document.getElementById('gesamt-doppel-body').innerHTML = '<tr><td colspan="3">Lade globale Daten...</td></tr>';
     document.getElementById('gesamt-einzel-body').innerHTML = '<tr><td colspan="5">Lade globale Daten...</td></tr>';
+
+    // Gesamt-Ranking bezieht sich auf die jeweils aktive (nicht archivierte) Runde
+    const aktDoppel = aktiverBewerb('Doppel');
+    const aktEinzel = aktiverBewerb('Einzel');
 
     database.ref('turnier').once('value').then((snapshot) => {
         const allData = snapshot.val() || {};
@@ -1332,9 +1547,10 @@ function berechneGesamtrangliste() {
                     // Mister X und Gast für das Gesamtranking ignorieren
                     if (spieler !== "Gast" && spieler !== "Mister X") {
                         const key = `${spieler} (${gruppe})`;
-                        if (bewerb === 'Doppel') {
+                        if (bewerb === aktDoppel) {
                             doppelStats[key] = { name: spieler, gruppe: gruppe, games: 0 };
-                        } else {
+                        } else if (bewerb === aktEinzel) {
+                            // Gesamt-Einzelranking zeigt nur die aktive Runde
                             einzelStats[key] = { name: spieler, gruppe: gruppe, siege: 0, saetze: 0, games: 0, gamesIncomplete: false };
                         }
                     }
@@ -1350,7 +1566,7 @@ function berechneGesamtrangliste() {
 
             matches.forEach(match => {
                 if (match.gespielt && !match.cancelled) {
-                    if (bewerb === 'Einzel') {
+                    if (bewerb === aktEinzel) {
                         const st = einzelStatsFromMatch(match);
                         const p1 = match.spieler[0]; const p2 = match.spieler[1];
                         const k1 = `${p1} (${gruppe})`; const k2 = `${p2} (${gruppe})`;
@@ -1362,7 +1578,7 @@ function berechneGesamtrangliste() {
                                 if (!st.gamesBekannt) einzelStats[k].gamesIncomplete = true;
                             }
                         });
-                    } else if (bewerb === 'Doppel') {
+                    } else if (bewerb === aktDoppel) {
                         match.spieler.forEach(spieler => {
                             const key = `${spieler} (${gruppe})`;
                             if (doppelStats[key]) {
@@ -1549,7 +1765,8 @@ function forceConfigSync() {
             gruppenStruktur: gruppenStruktur,
             spielerListen: spielerListen,
             turnierSpielplaene: turnierSpielplaene,
-            playerPins: playerPins
+            playerPins: playerPins,
+            wettbewerbe: wettbewerbe
         }).then(() => {
             alert("Konfiguration erfolgreich hochgeladen! Die Seite wird nun neu geladen.");
             location.reload();
@@ -1623,8 +1840,11 @@ function initApp() {
         if (data.turnierSpielplaene) { turnierSpielplaene = data.turnierSpielplaene; } 
         else { updates.turnierSpielplaene = turnierSpielplaene; updatesNeeded = true; }
 
-        if (data.playerPins) { playerPins = data.playerPins; } 
+        if (data.playerPins) { playerPins = data.playerPins; }
         else { updates.playerPins = playerPins; updatesNeeded = true; }
+
+        if (data.wettbewerbe) { wettbewerbe = data.wettbewerbe; }
+        else { updates.wettbewerbe = wettbewerbe; updatesNeeded = true; }
 
         // Wenn Teile gefehlt haben, lade sie jetzt in die Datenbank hoch
         if (updatesNeeded) {
@@ -1642,6 +1862,37 @@ function initApp() {
 }
 
 function startAppLogic() {
+    // Register mit den tatsächlich vorhandenen Bewerben abgleichen:
+    // Für jeden Bewerb ohne Register-Eintrag einen Standard-Eintrag anlegen.
+    let registerGeaendert = false;
+    Object.keys(gruppenStruktur).forEach(b => {
+        if (!wettbewerbe[b]) {
+            wettbewerbe[b] = {
+                typ: (b.indexOf('Doppel') === 0) ? 'Doppel' : 'Einzel',
+                runde: 1, frist: '', archiviert: false
+            };
+            registerGeaendert = true;
+        }
+    });
+    // Phantom-Einträge entfernen: Register-Bewerbe ohne echte Spieldaten
+    Object.keys(wettbewerbe).forEach(k => {
+        if (!gruppenStruktur[k]) { delete wettbewerbe[k]; registerGeaendert = true; }
+    });
+    // Bereinigtes Register einmalig zurückschreiben
+    if (registerGeaendert) {
+        database.ref('config/wettbewerbe').set(wettbewerbe).catch(() => {});
+    }
+
+    // Beim Start nicht auf einem archivierten Bewerb landen –
+    // stattdessen den aktiven Bewerb (bevorzugt gleichen Typs) wählen.
+    if (!gruppenStruktur[actBewerb] || istArchiviert(actBewerb)) {
+        const ersatz = aktiverBewerb(bewerbTyp(actBewerb))
+                    || aktiverBewerb('Doppel') || aktiverBewerb('Einzel')
+                    || Object.keys(gruppenStruktur).find(b => !istArchiviert(b))
+                    || Object.keys(gruppenStruktur)[0];
+        if (ersatz) { actBewerb = ersatz; safeStorage.setItem('steindorfer_bewerb', actBewerb); }
+    }
+
     generiereStandardSpiele();
     changeState();
 }
@@ -1817,12 +2068,184 @@ function parseSpielplanCSV(rawText) {
 }
 
 // -------------------------------------------------------------------------
+// 11b. GETRENNTER, NICHT-DESTRUKTIVER CSV-IMPORT (Einzel ODER Doppel)
+//      Importiert nur die Zeilen des gewählten Typs als NEUE Runde.
+//      Der jeweils andere Bewerbstyp bleibt komplett unverändert.
+//      Die bisherige aktive Runde des Typs wandert automatisch ins Archiv.
+// -------------------------------------------------------------------------
+let importZielTyp = null;
+
+function triggerBewerbImport(typ) {
+    if (currentUser !== 'Admin') { alert("Nur der Admin darf importieren."); return; }
+    importZielTyp = typ;
+    document.getElementById('bewerbImportField').click();
+}
+
+function importBewerbCSV(event) {
+    const typ  = importZielTyp;
+    const file = event.target.files[0];
+    if (!file) return;
+    if (typ !== 'Einzel' && typ !== 'Doppel') { alert("Kein Bewerbstyp gewählt."); event.target.value=''; return; }
+
+    // Frist (End-Datum) abfragen
+    const fristRoh = prompt(`Frist (End-Datum) für die neue ${typ}-Runde eingeben (TT.MM.JJJJ):`, '');
+    if (fristRoh === null) { event.target.value = ''; return; }
+    const fristISO = parseFristEingabe(fristRoh);
+    if (!fristISO) { alert("Ungültiges Datum. Bitte im Format TT.MM.JJJJ eingeben."); event.target.value = ''; return; }
+
+    // Eindeutigen Schlüssel bilden (unabhängig von der Anzeige-Nummer, kollisionsfrei)
+    let maxNr = 0;
+    new Set([...Object.keys(wettbewerbe), ...Object.keys(gruppenStruktur)]).forEach(k => {
+        if (bewerbTyp(k) !== typ) return;
+        const mm = k.match(/R(\d+)$/); const n = mm ? parseInt(mm[1], 10) : 1;
+        if (n > maxNr) maxNr = n;
+    });
+    const neueRunde = maxNr + 1;
+    const neuerKey  = `${typ}R${neueRunde}`;
+
+    // Anzeige-Nummer = Anzahl vorhandener Bewerbe dieses Typs (mit Daten) + 1
+    const anzeigeNr = Object.keys(gruppenStruktur).filter(k => bewerbTyp(k) === typ).length + 1;
+    const jahr      = fristISO.slice(0, 4);
+
+    if (!confirm(
+        `NEUEN EINZEL/DOPPEL-BEWERB IMPORTIEREN\n(${typ} · ${anzeigeNr}. Saisonbewerb ${jahr})\n\n` +
+        `• Nur die ${typ}-Zeilen der CSV werden übernommen.\n` +
+        `• Der andere Bewerbstyp bleibt unverändert.\n` +
+        `• Der bisherige aktive ${typ}-Bewerb wird ins Archiv verschoben (nur Admin editierbar).\n` +
+        `• Frist: ${deDatum(fristISO)}.\n\n` +
+        `Fortfahren?`
+    )) { event.target.value = ''; return; }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const res = parseBewerbCSV(e.target.result, typ);
+            if (!res) { event.target.value = ''; return; }
+
+            // Gruppen-Schlüssel der neuen Runde präfixen: "<neuerKey> <Gruppe>"
+            const neueSpielplaene = Object.assign({}, turnierSpielplaene);
+            Object.keys(res.spielplaene).forEach(g => { neueSpielplaene[`${neuerKey} ${g}`] = res.spielplaene[g]; });
+
+            const neueSpielerListen = JSON.parse(JSON.stringify(spielerListen));
+            neueSpielerListen[neuerKey] = res.listen;
+
+            const neueGruppenStruktur = JSON.parse(JSON.stringify(gruppenStruktur));
+            neueGruppenStruktur[neuerKey] = res.gruppen;
+
+            // Register: bisherige aktive Runde(n) dieses Typs archivieren, neue anlegen
+            const neueWettbewerbe = JSON.parse(JSON.stringify(wettbewerbe));
+            Object.keys(neueWettbewerbe).forEach(k => { if (neueWettbewerbe[k].typ === typ) neueWettbewerbe[k].archiviert = true; });
+            neueWettbewerbe[neuerKey] = { typ, runde: neueRunde, frist: fristISO, archiviert: false };
+
+            // Zugangscodes: 'Günter' nutzt denselben Code wie 'Günther'
+            const neuePlayerPins = Object.assign({}, playerPins);
+            if (!neuePlayerPins['Günter'] && neuePlayerPins['Günther']) neuePlayerPins['Günter'] = neuePlayerPins['Günther'];
+
+            database.ref('config').update({
+                turnierSpielplaene: neueSpielplaene,
+                spielerListen:      neueSpielerListen,
+                gruppenStruktur:    neueGruppenStruktur,
+                wettbewerbe:        neueWettbewerbe,
+                playerPins:         neuePlayerPins
+            }).then(() => {
+                turnierSpielplaene = neueSpielplaene;
+                spielerListen      = neueSpielerListen;
+                gruppenStruktur    = neueGruppenStruktur;
+                wettbewerbe        = neueWettbewerbe;
+                playerPins         = neuePlayerPins;
+                generiereStandardSpiele();
+                alert(`${typ} · ${anzeigeNr}. Saisonbewerb ${jahr} importiert! Der bisherige Bewerb ist jetzt im Archiv. Seite wird neu geladen.`);
+                location.reload();
+            }).catch(err => alert("Fehler beim Speichern: " + err));
+        } catch (err) {
+            alert("Fehler beim Lesen der CSV: " + err.message);
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+    event.target.value = '';
+}
+
+// Parst die Zeilen EINES Typs (Einzel oder Doppel). Rückgabe: pro Gruppe.
+function parseBewerbCSV(rawText, typ) {
+    const text  = rawText.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) { alert("Fehler: CSV enthält keine Daten."); return null; }
+
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const header    = lines[0].split(delimiter).map(h => h.trim());
+    const required  = ['Bewerb','Gruppe','Runde','Team1_Spieler1','Team2_Spieler1'];
+    for (const col of required) {
+        if (!header.includes(col)) { alert(`Fehler: Spalte "${col}" fehlt in der CSV.`); return null; }
+    }
+
+    const idx = {
+        bewerb: header.indexOf('Bewerb'), gruppe: header.indexOf('Gruppe'),
+        runde:  header.indexOf('Runde'),  datum:  header.indexOf('Datum'),
+        t1s1:   header.indexOf('Team1_Spieler1'), t1s2: header.indexOf('Team1_Spieler2'),
+        t2s1:   header.indexOf('Team2_Spieler1'), t2s2: header.indexOf('Team2_Spieler2'),
+        org:    header.indexOf('Organisator'),
+    };
+    const get = (cols, j) => (j >= 0 && cols[j] !== undefined) ? cols[j].trim() : '';
+
+    const spielplaene = {}, listen = {}, gruppen = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(delimiter);
+        if (get(cols, idx.bewerb) !== typ) continue;   // nur Zeilen des gewählten Typs
+
+        const gruppe = get(cols, idx.gruppe);
+        const runde  = parseInt(get(cols, idx.runde));
+        const datum  = get(cols, idx.datum);
+        const t1s1 = normSpieler(get(cols, idx.t1s1)), t1s2 = normSpieler(get(cols, idx.t1s2));
+        const t2s1 = normSpieler(get(cols, idx.t2s1)), t2s2 = normSpieler(get(cols, idx.t2s2));
+        const org  = normSpieler(get(cols, idx.org));
+        if (!gruppe || isNaN(runde) || !t1s1 || !t2s1) continue;
+
+        let team1, team2, spielerImSpiel;
+        if (typ === 'Doppel') {
+            const organisator = org || t1s1;
+            team1 = [t1s1 === organisator ? t1s1 + '*' : t1s1, t1s2].filter(s => s);
+            team2 = [t2s1, t2s2].filter(s => s);
+            spielerImSpiel = [t1s1, t1s2, t2s1, t2s2];
+        } else {
+            team1 = [t1s1]; team2 = [t2s1];
+            spielerImSpiel = [t1s1, t2s1];
+        }
+
+        if (!spielplaene[gruppe]) spielplaene[gruppe] = [];
+        const eintrag = { runde, team1, team2 };
+        if (datum) eintrag.datum = datum;
+        spielplaene[gruppe].push(eintrag);
+
+        if (!gruppen.includes(gruppe)) gruppen.push(gruppe);
+        if (!listen[gruppe]) listen[gruppe] = ['Gast'];
+        spielerImSpiel.forEach(s => { if (s && !listen[gruppe].includes(s)) listen[gruppe].push(s); });
+    }
+
+    if (Object.keys(spielplaene).length === 0) {
+        alert(`Fehler: Keine ${typ}-Spiele in der CSV gefunden.`);
+        return null;
+    }
+
+    gruppen.sort();
+    return { spielplaene, listen, gruppen };
+}
+
+// -------------------------------------------------------------------------
 // 12. SPIELERVERWALTUNG
 // -------------------------------------------------------------------------
 function openSpielerModal() {
     if (currentUser !== 'Admin') return;
-    // Bewerb-Dropdown mit aktueller Auswahl vorbelegen
-    document.getElementById('sv-bewerb').value = actBewerb;
+    // Bewerb-Dropdown dynamisch aus dem Register aufbauen
+    const svB = document.getElementById('sv-bewerb');
+    const keys = Object.keys(gruppenStruktur).sort((a, c) => {
+        const ta = bewerbTyp(a), tc = bewerbTyp(c);
+        if (ta !== tc) return ta === 'Doppel' ? -1 : 1;
+        return ((wettbewerbe[a] && wettbewerbe[a].runde) || 0) - ((wettbewerbe[c] && wettbewerbe[c].runde) || 0);
+    });
+    svB.innerHTML = '';
+    keys.forEach(b => { svB.innerHTML += `<option value="${b}">${bewerbLabel(b)}${istArchiviert(b) ? ' 🗄' : ''}</option>`; });
+    svB.value = gruppenStruktur[actBewerb] ? actBewerb : (keys[0] || 'Doppel');
     svUpdateGruppenDropdown();
     renderSpielerTabelle();
     document.getElementById('spielerModal').style.display = 'flex';
@@ -2208,8 +2631,8 @@ async function exportErgebnissePDF() {
             drawPageFooter();
 
             // Obere Hälfte: Bewerb-Titelbereich (Clay-Rot für Doppel, dunkel für Einzel)
-            const bewerbColor = bewerb === 'Doppel' ? CLAY : COL_HEADER_BG;
-            const bewerbColorLight = bewerb === 'Doppel' ? CLAY_LIGHT : [100, 130, 160];
+            const bewerbColor = bewerbTyp(bewerb) === 'Doppel' ? CLAY : COL_HEADER_BG;
+            const bewerbColorLight = bewerbTyp(bewerb) === 'Doppel' ? CLAY_LIGHT : [100, 130, 160];
             doc.setFillColor(...bewerbColor);
             doc.rect(0, 10, pageW, pageH / 2 - 10, 'F');
 
@@ -2217,7 +2640,7 @@ async function exportErgebnissePDF() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(42);
             doc.setTextColor(255, 255, 255);
-            doc.text(bewerb.toUpperCase(), pageW / 2, pageH / 4 + 8, { align: 'center' });
+            doc.text(bewerbLabel(bewerb).toUpperCase(), pageW / 2, pageH / 4 + 8, { align: 'center' });
 
             // Untertitel: Anzahl Gruppen & Matches
             const bewerbTotalMatches = bewerbGruppen[bewerb].reduce((sum, gr) => sum + (turnierSpielplaene[bewerb + ' ' + gr] || []).length, 0);
@@ -2285,7 +2708,7 @@ async function exportErgebnissePDF() {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(12);
             doc.setTextColor(...COL_HEADER_TXT);
-            doc.text(bewerb.toUpperCase(), pageW / 2, y + 6.2, { align: 'center' });
+            doc.text(bewerbLabel(bewerb).toUpperCase(), pageW / 2, y + 6.2, { align: 'center' });
             y += 12;
             doc.setTextColor(0, 0, 0);
 
@@ -2343,7 +2766,7 @@ async function exportErgebnissePDF() {
                 doc.setTextColor(0, 0, 0);
 
                 // ── Spalten-Layout ──
-                const isDoppel = bewerb === 'Doppel';
+                const isDoppel = bewerbTyp(bewerb) === 'Doppel';
                 const C_R      = marginL;
                 const C_T1     = marginL + 10;
                 const C_T2     = marginL + 52;
@@ -2684,6 +3107,9 @@ async function exportErgebnissePDF() {
 
         // ── Gesamtranking ──────────────────────────────────────────────────────
         // Statistiken aus firebaseData berechnen (gleiche Logik wie berechneGesamtrangliste())
+        // Bezieht sich auf die jeweils aktive (nicht archivierte) Runde je Typ.
+        const aktDoppel = aktiverBewerb('Doppel');
+        const aktEinzel = aktiverBewerb('Einzel');
         const doppelStats = {};
         const einzelStats = {};
 
@@ -2692,8 +3118,8 @@ async function exportErgebnissePDF() {
                 spielerListen[bw][gr].forEach(sp => {
                     if (sp !== 'Gast' && sp !== 'Mister X') {
                         const key = `${sp}||${gr}`;
-                        if (bw === 'Doppel') doppelStats[key] = { name: sp, gruppe: gr, games: 0 };
-                        else einzelStats[key] = { name: sp, gruppe: gr, siege: 0, saetze: 0, games: 0, gamesIncomplete: false };
+                        if (bw === aktDoppel) doppelStats[key] = { name: sp, gruppe: gr, games: 0 };
+                        else if (bw === aktEinzel) einzelStats[key] = { name: sp, gruppe: gr, siege: 0, saetze: 0, games: 0, gamesIncomplete: false };
                     }
                 });
             });
@@ -2706,7 +3132,7 @@ async function exportErgebnissePDF() {
             const vals2 = Array.isArray(arr2) ? arr2 : Object.values(arr2);
             vals2.forEach(match => {
                 if (!match || !match.gespielt || match.cancelled) return;
-                if (bw === 'Einzel') {
+                if (bw === aktEinzel) {
                     const st = einzelStatsFromMatch(match);
                     const sp = match.spieler || [];
                     const p1 = sp[0]; const p2 = sp[1];
@@ -2719,7 +3145,7 @@ async function exportErgebnissePDF() {
                             if (!st.gamesBekannt) einzelStats[k].gamesIncomplete = true;
                         }
                     });
-                } else if (bw === 'Doppel') {
+                } else if (bw === aktDoppel) {
                     (match.spieler || []).forEach(sp => {
                         const key = `${sp}||${gr}`;
                         if (doppelStats[key]) doppelStats[key].games += (match.ergebnisse && match.ergebnisse[sp]) || 0;
@@ -3022,7 +3448,8 @@ function truncate(str, maxLen) {
         <div class="sv-filter">
             <select id="sv-bewerb" onchange="svUpdateGruppenDropdown(); renderSpielerTabelle()">
                 <option value="Doppel">Doppel</option>
-                <option value="Einzel">Einzel</option>
+                <option value="Einzel">Einzel · 1. Runde</option>
+                <option value="EinzelR2">Einzel · 2. Runde</option>
             </select>
             <select id="sv-gruppe" onchange="renderSpielerTabelle()"></select>
         </div>
