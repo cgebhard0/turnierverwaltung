@@ -562,7 +562,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.9.6";
+const APP_VERSION = "1.9.7";
 const BUILD_DATE  = "2026-07-08";
 
 const firebaseConfig = {
@@ -976,11 +976,12 @@ function initBewerbDropdown() {
     const archiv = alle.filter(b =>  istArchiviert(b)).sort(sortFn);
     // Flache Liste ohne Gruppen (keine Leerzeilen).
     // Im Menü: weiße Schrift, Hintergrund grün (aktiv) bzw. rot (archiviert).
+    // Zusätzlich 🟢/🔴 als geräteunabhängige Kennzeichnung (falls ein Handy
+    // die Options-Hintergrundfarbe ignoriert).
     const opt = b => {
-        const style = istArchiviert(b)
-            ? 'color:#fff;background:#c0392b;'
-            : 'color:#fff;background:#1e8449;';
-        return `<option value="${b}" style="${style}">${bewerbLabel(b)}</option>`;
+        const arch = istArchiviert(b);
+        const style = arch ? 'color:#fff;background:#c0392b;' : 'color:#fff;background:#1e8449;';
+        return `<option value="${b}" style="${style}">${arch ? '🔴' : '🟢'} ${bewerbLabel(b)}</option>`;
     };
     bDrop.innerHTML = aktiv.map(opt).join('') + archiv.map(opt).join('');
 
@@ -1152,11 +1153,14 @@ function renderSpiele() {
 
     let aktuelleRunde = "";
     const archiviert = istArchiviert(actBewerb);
+    // Fallback-Frist aus dem Bewerb ableiten (statt fest verdrahtet)
+    const bwFrist = wettbewerbe[actBewerb] && wettbewerbe[actBewerb].frist;
+    const fallbackDatum = bwFrist ? ('bis ' + deDatum(bwFrist)) : 'bis 30.06.2026';
 
     spiele.forEach(match => {
         if (match.runde !== aktuelleRunde) {
             aktuelleRunde = match.runde;
-            const datumAnzeige = (!match.datum || match.datum === 'TBA') ? 'bis 30.06.2026' : match.datum;
+            const datumAnzeige = (!match.datum || match.datum === 'TBA') ? fallbackDatum : match.datum;
             const rhClass = 'runde-header' + (archiviert ? ' runde-header-archiviert' : '');
             liste.innerHTML += `<div class="${rhClass}">${aktuelleRunde} <span class="runde-datum">(${datumAnzeige})</span></div>`;
         }
