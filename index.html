@@ -170,6 +170,21 @@
         .select-container:hover { background: rgba(255,255,255,0.25); }
         .select-container select { background: transparent; color: white; border: none; font-weight: bold; font-size: 0.85rem; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; padding-left: 5px; }
         .select-container select option { color: black; background-color: white; }
+        /* Eigenes Bewerb-Dropdown (farbige Statuspunkte, Bereiche Aktuell/Archiv) */
+        .bewerb-trigger { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: none; color: #fff; font-weight: bold; font-size: 0.85rem; cursor: pointer; padding-left: 5px; font-family: inherit; }
+        .bewerb-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+        .bewerb-caret { font-size: 0.7rem; opacity: 0.85; margin-left: 1px; }
+        .bewerb-menu { position: absolute; top: 100%; left: 0; margin-top: 8px; min-width: 240px; max-width: calc(100vw - 24px); background: #fff; border: 1px solid #e6e3dd; border-radius: 12px; box-shadow: 0 10px 26px rgba(60,40,25,0.22); overflow: hidden; z-index: 1200; text-align: left; }
+        .bewerb-grp { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #9a938a; padding: 12px 16px 6px; }
+        .bewerb-grp.arch { color: #c0392b; }
+        .bewerb-item { display: flex; align-items: center; gap: 11px; padding: 11px 16px; cursor: pointer; }
+        .bewerb-item:hover { background: #f5f3f0; }
+        .bewerb-item.sel { background: #eafaf1; border-left: 3px solid #16a085; padding-left: 13px; }
+        .bewerb-item .nm { font-size: 15px; color: #2c3e50; flex: 1; }
+        .bewerb-item.arch .nm { color: #8a4038; }
+        .bewerb-item.sel .nm { color: #14503f; font-weight: bold; }
+        .bewerb-item .chk { color: #16a085; font-weight: bold; }
+        .bewerb-divider { height: 1px; background: #eee9e2; margin: 6px 0; }
 
         .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
         
@@ -415,11 +430,14 @@
     </div>
 
     <div class="controls">
-        <div class="select-container">
-            Bewerb: 
-            <select id="bewerbDropdown" onchange="changeBewerb()">
-                <option value="Doppel">Doppel</option>
-            </select>
+        <div class="select-container" id="bewerbSelectContainer" style="position: relative;">
+            Bewerb:
+            <button type="button" id="bewerbTrigger" class="bewerb-trigger" aria-haspopup="listbox" aria-expanded="false" onclick="toggleBewerbMenu(event)">
+                <span class="bewerb-dot" id="bewerbDot"></span>
+                <span id="bewerbLabelText">Doppel</span>
+                <span class="bewerb-caret">&#9662;</span>
+            </button>
+            <div id="bewerbMenu" class="bewerb-menu" role="listbox" style="display: none;"></div>
         </div>
         <div class="select-container">
             Gruppe: 
@@ -558,7 +576,7 @@
 // 1. FIREBASE KONFIGURATION
 // -------------------------------------------------------------------------
 // ── App-Version ──────────────────────────────────────────────────────────────
-const APP_VERSION = "1.9.9";
+const APP_VERSION = "2.0.0";
 const BUILD_DATE  = "2026-07-08";
 
 const firebaseConfig = {
@@ -954,38 +972,75 @@ let currentDbRef = null;
 let currentTab = 'spiele';
 let isAdminLoggedIn = (currentUser === 'Admin');
 
-document.getElementById('bewerbDropdown').value = actBewerb;
-
+// Eigenes Bewerb-Dropdown: baut das Menü (Bereiche Aktuell/Archiv) und den Trigger.
 function initBewerbDropdown() {
-    const bDrop = document.getElementById('bewerbDropdown');
-    if (!bDrop) return;
+    const menu     = document.getElementById('bewerbMenu');
+    const labelEl  = document.getElementById('bewerbLabelText');
+    const dotEl    = document.getElementById('bewerbDot');
+    if (!menu || !labelEl) return;
+
     const alle = Object.keys(gruppenStruktur);
-    // Sortierung: Doppel-Typ zuerst, dann Einzel; innerhalb nach Runde
     const sortFn = (a, c) => {
         const ta = bewerbTyp(a), tc = bewerbTyp(c);
         if (ta !== tc) return ta === 'Doppel' ? -1 : 1;
-        const ra = (wettbewerbe[a] && wettbewerbe[a].runde) || 0;
-        const rc = (wettbewerbe[c] && wettbewerbe[c].runde) || 0;
-        return ra - rc;
+        return ((wettbewerbe[a] && wettbewerbe[a].runde) || 0) - ((wettbewerbe[c] && wettbewerbe[c].runde) || 0);
     };
     const aktiv  = alle.filter(b => !istArchiviert(b)).sort(sortFn);
     const archiv = alle.filter(b =>  istArchiviert(b)).sort(sortFn);
-    // Flache Liste ohne Gruppen (keine Leerzeilen).
-    // Im Menü: weiße Schrift, Hintergrund grün (aktiv) bzw. rot (archiviert).
-    // Zusätzlich 🟢/🔴 als geräteunabhängige Kennzeichnung (falls ein Handy
-    // die Options-Hintergrundfarbe ignoriert).
-    const opt = b => {
-        const arch = istArchiviert(b);
-        const style = arch ? 'color:#fff;background:#c0392b;' : 'color:#fff;background:#1e8449;';
-        return `<option value="${b}" style="${style}">${arch ? '🔴' : '🟢'} ${bewerbLabel(b)}</option>`;
-    };
-    bDrop.innerHTML = aktiv.map(opt).join('') + archiv.map(opt).join('');
-
     if (!alle.includes(actBewerb)) actBewerb = aktiv[0] || alle[0] || 'Doppel';
-    bDrop.value = actBewerb;
-    // Geschlossenes Auswahlfeld: weiße Schrift beibehalten (wie Header-Design)
-    bDrop.style.color = '#fff';
+
+    const item = b => {
+        const arch = istArchiviert(b), sel = (b === actBewerb);
+        const dot = arch ? '#c0392b' : '#1e8449';
+        return `<div class="bewerb-item${arch ? ' arch' : ''}${sel ? ' sel' : ''}" role="option" aria-selected="${sel}" onclick="selectBewerb('${b}')">
+            <span class="bewerb-dot" style="background:${dot}"></span>
+            <span class="nm">${bewerbLabel(b)}</span>
+            ${sel ? '<span class="chk">&#10003;</span>' : ''}
+        </div>`;
+    };
+
+    let html = '';
+    if (aktiv.length)  html += `<div class="bewerb-grp">Aktuelle Bewerbe</div>` + aktiv.map(item).join('');
+    if (archiv.length) html += `<div class="bewerb-divider"></div><div class="bewerb-grp arch">Archiv</div>` + archiv.map(item).join('');
+    menu.innerHTML = html;
+
+    // Trigger (geschlossener Zustand) aktualisieren
+    labelEl.textContent = bewerbLabel(actBewerb);
+    if (dotEl) dotEl.style.background = istArchiviert(actBewerb) ? '#c0392b' : '#1e8449';
 }
+
+function toggleBewerbMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('bewerbMenu');
+    const trig = document.getElementById('bewerbTrigger');
+    if (!menu) return;
+    const open = menu.style.display === 'block';
+    menu.style.display = open ? 'none' : 'block';
+    if (trig) trig.setAttribute('aria-expanded', String(!open));
+}
+
+function closeBewerbMenu() {
+    const menu = document.getElementById('bewerbMenu');
+    if (menu) menu.style.display = 'none';
+    const trig = document.getElementById('bewerbTrigger');
+    if (trig) trig.setAttribute('aria-expanded', 'false');
+}
+
+function selectBewerb(b) {
+    closeBewerbMenu();
+    if (b === actBewerb) return;
+    actBewerb = b;
+    safeStorage.setItem('steindorfer_bewerb', actBewerb);
+    actGroup = (gruppenStruktur[actBewerb] || ['A'])[0];
+    changeState();
+}
+
+// Menü schließen bei Klick außerhalb bzw. Escape
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('bewerbMenu');
+    if (menu && menu.style.display === 'block' && !e.target.closest('#bewerbSelectContainer')) closeBewerbMenu();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeBewerbMenu(); });
 
 function initSelects() {
     // Bewerb-Auswahl absichern: nur Bewerbe mit vollständigen Daten zulassen
@@ -1060,13 +1115,6 @@ function listenToFirebase() {
             berechneGesamtrangliste();
         }
     });
-}
-
-function changeBewerb() {
-    actBewerb = document.getElementById('bewerbDropdown').value;
-    safeStorage.setItem('steindorfer_bewerb', actBewerb);
-    actGroup = (gruppenStruktur[actBewerb] || ['A'])[0];
-    changeState();
 }
 
 function changeGroup() {
