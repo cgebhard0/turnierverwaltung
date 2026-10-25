@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>SC Steindorf – Admin-Handbuch</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #2c3e50; font-size: 11pt; line-height: 1.45; margin: 0; }
+  .title { background: #a03c1e; color: #fff; text-align: center; padding: 16px 10px; border-radius: 4px; }
+  .title h1 { margin: 0; font-size: 22pt; font-weight: 800; }
+  .subtitle { text-align: center; font-style: italic; color: #7f8c8d; margin: 8px 0 20px; }
+  h2 { background: #16a085; color: #fff; font-size: 12pt; text-align: center; padding: 8px 10px; border-radius: 3px; margin: 22px 0 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 4px; }
+  td { border: 1px solid #e3e7ea; padding: 8px 12px; vertical-align: top; }
+  td.k { background: #f7f9fa; font-weight: 700; color: #2c3e50; width: 34%; }
+  td.v { color: #34495e; }
+  p { margin: 10px 2px; }
+  .note { font-style: italic; color: #7f8c8d; font-size: 9.5pt; margin: 4px 2px 0; }
+  .warn { color: #c0392b; font-weight: 700; margin: 8px 2px; }
+  .footer { margin-top: 26px; padding-top: 8px; border-top: 1px solid #ccc; text-align: center; font-style: italic; color: #95a5a6; font-size: 9pt; }
+  /* PIN-Tabelle */
+  table.pins td { text-align: left; }
+  table.pins td.name { background: #ffffff; font-weight: 600; width: 14%; }
+  table.pins td.pin { width: 6%; color: #34495e; }
+  table.pins thead td { background: #eef2f4; font-weight: 700; font-size: 9pt; color: #7f8c8d; }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+  <div class="title"><h1>SC Steindorf Admin-Handbuch 2026</h1></div>
+  <div class="subtitle">Vertraulich · Nur für den Administrator</div>
+
+  <h2>1 · Admin-Login</h2>
+  <table>
+    <tr><td class="k">URL</td><td class="v">https://cgebhard0.github.io/turnierverwaltung/</td></tr>
+    <tr><td class="k">Dropdown</td><td class="v">„Admin" wählen</td></tr>
+    <tr><td class="k">PIN</td><td class="v">1301</td></tr>
+    <tr><td class="k">Admin-Bereich</td><td class="v">Erscheint automatisch nach Login</td></tr>
+  </table>
+  <p class="warn">■ PIN vertraulich behandeln. Bei Kompromittierung sofort im Quellcode ändern.</p>
+
+  <h2>2 · PIN-Verzeichnis aller Spieler</h2>
+  <table class="pins">
+    <thead><tr><td>Spieler</td><td>PIN</td><td>Spieler</td><td>PIN</td><td>Spieler</td><td>PIN</td></tr></thead>
+    <tbody>
+      <tr><td class="name">Admin</td><td class="pin">1301</td><td class="name">Franky</td><td class="pin">8472</td><td class="name">Andreas</td><td class="pin">3910</td></tr>
+      <tr><td class="name">Elmar</td><td class="pin">5201</td><td class="name">Andy</td><td class="pin">7749</td><td class="name">Nina</td><td class="pin">1038</td></tr>
+      <tr><td class="name">Pedro</td><td class="pin">6621</td><td class="name">Günther</td><td class="pin">9345</td><td class="name">Hannes</td><td class="pin">2184</td></tr>
+      <tr><td class="name">Stefan P</td><td class="pin">4092</td><td class="name">Köste</td><td class="pin">8133</td><td class="name">Peter</td><td class="pin">5509</td></tr>
+      <tr><td class="name">Robi</td><td class="pin">7291</td><td class="name">Christian</td><td class="pin">1301</td><td class="name">Simone</td><td class="pin">3920</td></tr>
+      <tr><td class="name">Zippe</td><td class="pin">1184</td><td class="name">Gabi</td><td class="pin">5039</td><td class="name">Sandra</td><td class="pin">8274</td></tr>
+      <tr><td class="name">Wolfi</td><td class="pin">6305</td><td class="name">Dietmar</td><td class="pin">2847</td><td class="name">Anna B</td><td class="pin">9156</td></tr>
+      <tr><td class="name">Anna K</td><td class="pin">3478</td><td class="name">Sabrina</td><td class="pin">6820</td><td class="name">Mandy</td><td class="pin">1593</td></tr>
+      <tr><td class="name">Silke</td><td class="pin">4721</td><td class="name">Michaela</td><td class="pin">8365</td><td class="name">Bici</td><td class="pin">2048</td></tr>
+      <tr><td class="name">Stefan T</td><td class="pin">5710</td><td class="name">Mister X</td><td class="pin">9931</td><td class="name"></td><td class="pin"></td></tr>
+    </tbody>
+  </table>
+
+  <h2>3 · Admin-Funktionen</h2>
+  <table>
+    <tr><td class="k">Backup erstellen</td><td class="v">Exportiert alle Firebase-Daten als JSON-Datei (Sicherungskopie)</td></tr>
+    <tr><td class="k">Backup laden</td><td class="v">Stellt gespeicherte Daten aus JSON-Datei wieder her</td></tr>
+    <tr><td class="k">Spielerliste CSV</td><td class="v">Exportiert Namen + PINs aller Spieler als CSV</td></tr>
+    <tr><td class="k">Spielplan CSV</td><td class="v">Exportiert den gesamten Spielplan aller Gruppen als CSV</td></tr>
+    <tr><td class="k">CSV importieren</td><td class="v">Lädt neuen Spielplan aus CSV-Datei (überschreibt bestehenden)</td></tr>
+    <tr><td class="k">Spieler verwalten</td><td class="v">Spieler anlegen, PIN ändern oder löschen (Modal)</td></tr>
+    <tr><td class="k">Config sync</td><td class="v">Spielerlisten + PINs in Firebase speichern</td></tr>
+    <tr><td class="k">Gruppe zurücksetzen</td><td class="v">Alle Ergebnisse einer Gruppe löschen (nicht rückgängig!)</td></tr>
+    <tr><td class="k">Alles löschen</td><td class="v">Gesamtes Turnier zurücksetzen (■ unwiderruflich)</td></tr>
+    <tr><td class="k">PDF-Export</td><td class="v">Vollständiger Ergebnisbericht mit Deckblatt, Ranglisten, QR-Code</td></tr>
+  </table>
+
+  <h2>4 · CSV-Format Spielplan-Import</h2>
+  <p>Trennzeichen: <b>Semikolon (;)</b> · Encoding: <b>UTF-8 mit BOM</b></p>
+  <table>
+    <tr><td class="k">Spalten</td><td class="v"><code>Bewerb;Gruppe;Runde;Datum;Team1_S1;Team1_S2;Team2_S1;Team2_S2;Organisator</code></td></tr>
+    <tr><td class="k">Doppel</td><td class="v"><code>Doppel;A;1;22.5.-31.5.;Nina;Günther;Stefan P;Köste;Nina</code></td></tr>
+    <tr><td class="k">Einzel</td><td class="v"><code>Einzel;A;1;;Nina;;Peter;;</code></td></tr>
+    <tr><td class="k">Hinweise</td><td class="v">Datum optional · Einzel: nur je 1 Spieler pro Team · Organisator = 1. Spieler Team 1</td></tr>
+  </table>
+
+  <h2>5 · Spielerverwaltung</h2>
+  <p>Im Modal „Spieler verwalten" (Admin-Bereich):</p>
+  <table>
+    <tr><td class="k">Neuer Spieler</td><td class="v">Bewerb + Gruppe wählen → Name + PIN eingeben → Hinzufügen</td></tr>
+    <tr><td class="k">PIN ändern</td><td class="v">In der Tabelle auf „PIN ändern" klicken</td></tr>
+    <tr><td class="k">Spieler löschen</td><td class="v">Auf „Löschen" klicken → Bestätigung erforderlich</td></tr>
+    <tr><td class="k">Config speichern</td><td class="v">→ Änderungen werden in Firebase gespeichert</td></tr>
+  </table>
+
+  <h2>6 · Ergebnis korrigieren</h2>
+  <p>Der Admin kann jedes Ergebnis bearbeiten, unabhängig vom eingeloggten Spieler.</p>
+  <table>
+    <tr><td class="k">Schritt 1</td><td class="v">Als Admin einloggen</td></tr>
+    <tr><td class="k">Schritt 2</td><td class="v">Bewerb + Gruppe des Spiels wählen</td></tr>
+    <tr><td class="k">Schritt 3</td><td class="v">Spiel finden → „Bearbeiten" klicken</td></tr>
+    <tr><td class="k">Schritt 4</td><td class="v">Werte korrigieren → Speichern</td></tr>
+  </table>
+  <p class="note">Einzel: Im Bearbeiten-Modal wird der Spielstand <b>je Satz</b> erfasst (Satz 1/2/3, Games);
+     Gewinnsätze, Sieger und gewonnene Games berechnet die App daraus neu. Spiele mit „⚠ Spielstand
+     nachzutragen" haben noch keine Satz-Spielstände – hier zählen die Games erst nach der Nacherfassung.</p>
+
+  <h2>7 · Deployment</h2>
+  <table>
+    <tr><td class="k">Repository</td><td class="v">https://github.com/cgebhard0/turnierverwaltung</td></tr>
+    <tr><td class="k">Datei</td><td class="v">index.html in GitHub hochladen (alte ersetzen)</td></tr>
+    <tr><td class="k">Cache leeren</td><td class="v">Strg+Shift+R oder Inkognito-Tab nach Upload; installierte PWA am Handy ggf. neu installieren</td></tr>
+    <tr><td class="k">App-URL</td><td class="v">https://cgebhard0.github.io/turnierverwaltung/</td></tr>
+  </table>
+
+  <div class="footer">SC Steindorf Turnierverwaltung 2026 · Admin-Handbuch · Entwickelt von Christian Gebhard</div>
+
+</body>
+</html>

@@ -11,7 +11,7 @@
 **URL:** https://cgebhard0.github.io/turnierverwaltung/  
 **Deployment:** GitHub Pages  
 **Echtzeit-Datenbank:** Firebase Realtime Database  
-**Version:** `1.5.0` (Build: 2026-05-29)  
+**Version:** `1.7.1` (Build: 2026-06-30)  
 **Entwickler:** Christian Gebhard
 
 ---
@@ -95,12 +95,19 @@ Stefan T: 5710
     spieler: ["Nina", "Günther", "Stefan P", "Köste"],
     gespielt: false,
     cancelled: false,
-    ergebnisse: {},        // { "Nina": 12, "Günther": 8, ... }
-    detailErgebnis: "",    // z.B. "6:4, 3:6, 10:8"
+    ergebnisse: {},        // Doppel: Games je Spieler · Einzel: Gewinnsätze je Spieler (abgeleitet)
+    saetze: [],            // NUR Einzel: Satz-Spielstände, z.B. [[6,4],[4,6],[7,5]]
+    detailErgebnis: "",    // z.B. "6:4, 4:6, 7:5" (bei Einzel aus saetze generiert)
     eingetragenVon: "",
     eingetragenAm: ""
 }
 ```
+
+> **Einzel-Wertung (seit v1.7.x):** Eingetragen wird der **Spielstand je Satz** (Games). Daraus
+> werden Gewinnsätze, Sieger und gewonnene Games berechnet (`einzelStatsFromMatch()`). Best of 3,
+> bei Satzgleichstand 1:1 ein **voller 3. Satz** (dessen Games voll zählen). Games werden zur
+> Laufzeit aus `saetze` bzw. ersatzweise geparst aus `detailErgebnis` ermittelt – **keine
+> DB-Migration nötig**. Rangliste-Sortierung Einzel: **Siege → Sätze → Games** (`cmpEinzel()`).
 
 ---
 
@@ -124,7 +131,7 @@ Stefan T: 5710
 |---------|-------------|
 | Spielplan | Runden & Spiele der gewählten Gruppe |
 | Ergebnis eintragen/bearbeiten | Nach PIN-Login, nur eigene Spiele |
-| Rangliste | Automatisch nach Games (Doppel) / Sätze (Einzel) |
+| Rangliste | Automatisch – Doppel nach Games; Einzel nach Siege → Sätze → Games |
 | Gesamt-Ranking | Gruppenübergreifend |
 | Fortschrittsbalken | % gespielter Matches |
 | PDF-Export | Vollständiger Ergebnisbericht mit Deckblatt, QR-Code, Ranglisten |
@@ -145,7 +152,7 @@ Stefan T: 5710
 
 ---
 
-## 6. PDF-Export (Stand v1.5.0)
+## 6. PDF-Export (Stand v1.7.1)
 
 Der PDF-Export (`exportErgebnissePDF()`) generiert einen vollständigen Turnierbericht:
 
@@ -155,7 +162,7 @@ Der PDF-Export (`exportErgebnissePDF()`) generiert einen vollständigen Turnierb
 | 2+ | **Trennseite Doppel** – Bewerb-Name, Fortschrittsbalken, Gruppen-Übersicht |
 | 3+ | **Doppel-Matches** – pro Gruppe: Spieltabelle (Runde, Team 1, Team 2, Sätze, Games) + Gruppenrangliste |
 | n | **Trennseite Einzel** |
-| n+ | **Einzel-Matches** – Spieltabelle (Sätze, Ranking-Sätze) + Gruppenrangliste |
+| n+ | **Einzel-Matches** – Spieltabelle (Sätze, Games je Spieler) + Gruppenrangliste (Siege/Sätze/Games) |
 | n+1 | **Gesamtranking Doppel** |
 | n+2 | **Gesamtranking Einzel** |
 | Letzte | **Zusammenfassung** – Kacheln, Fortschrittsbalken, Gruppen-Fortschritt |
@@ -192,7 +199,9 @@ Einzel;A;1;;Nina;;Peter;;
 | `listenToFirebase()` | Echtzeit-Listener |
 | `renderSpiele()` | Spielkarten-UI |
 | `openModal(id)` | Ergebnis-Modal öffnen |
-| `saveScore()` | Ergebnis in Firebase schreiben |
+| `saveScore()` | Ergebnis in Firebase schreiben (Einzel: aus Satz-Spielständen abgeleitet) |
+| `einzelStatsFromMatch()` | Einzel: Sätze/Sieger/Games aus einem Spiel berechnen (zentral, app + PDF) |
+| `cmpEinzel()` | Einzel-Sortierung: Siege → Sätze → Games |
 | `berechneRangliste()` | Gruppenrangliste |
 | `berechneGesamtrangliste()` | Gesamtranking |
 | `changeUser()` | PIN-Prüfung + Session |
@@ -248,4 +257,4 @@ Einzel;A;1;;Nina;;Peter;;
 
 ---
 
-*Dokumentation aktualisiert: Mai 2026 · Entwickelt von Christian Gebhard*
+*Dokumentation aktualisiert: Juni 2026 · Entwickelt von Christian Gebhard*

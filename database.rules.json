@@ -1,0 +1,46 @@
+{
+  /*
+    SC Steindorf – Firebase Realtime Database: Validierungsregeln
+    ------------------------------------------------------------------
+    Zweck: Datenintegrität. Lesen/Schreiben bleiben offen (die App hat
+    keine echte Anmeldung), aber:
+      - Auf oberster Ebene sind NUR 'config' und 'turnier' erlaubt
+        -> niemand kann fremde Knoten / Datenmüll anlegen.
+      - 'config' muss ein Objekt sein.
+      - Spiel-Datensätze dürfen nur die korrekten Datentypen enthalten
+        (Zahlen für Games, Boolean für Status, Text für Namen/Datum).
+    Das verhindert versehentliche oder plumpe Beschädigung der Daten.
+    Es ist KEINE Zugriffskontrolle (das ginge nur mit Anmeldung).
+  */
+  "rules": {
+    ".read": true,
+    ".write": true,
+
+    "config": {
+      ".validate": "newData.hasChildren()"
+    },
+
+    "turnier": {
+      "$gruppe": {
+        "$match": {
+          "id":             { ".validate": "newData.isString()" },
+          "runde":          { ".validate": "newData.isString()" },
+          "datum":          { ".validate": "newData.isString()" },
+          "gespielt":       { ".validate": "newData.isBoolean()" },
+          "cancelled":      { ".validate": "newData.isBoolean()" },
+          "detailErgebnis": { ".validate": "newData.isString()" },
+          "eingetragenVon": { ".validate": "newData.isString()" },
+          "eingetragenAm":  { ".validate": "newData.isString() || newData.isNumber()" },
+          "spieler": {
+            "$i": { ".validate": "newData.isString()" }
+          },
+          "ergebnisse": {
+            "$spieler": { ".validate": "newData.isNumber()" }
+          }
+        }
+      }
+    },
+
+    "$other": { ".validate": false }
+  }
+}
